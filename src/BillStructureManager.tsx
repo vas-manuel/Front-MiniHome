@@ -116,7 +116,7 @@ export default function BillStructureManager() {
   const [accountName, setAccountName] = useState("");
   const [groupId, setGroupId] = useState<string | "">("");
   const [groupNameInline, setGroupNameInline] = useState("");
-  const [dueDay, setDueDay] = useState<number | "">("");
+  const [dueDay, setDueDay] = useState<string>("");
   const [visible, setVisible] = useState(true);
 
 
@@ -384,9 +384,15 @@ export default function BillStructureManager() {
             {tab === "FIXED" && (
               <TextField
                 label="Día Vencimiento"
-                type="number"
+                type="text"
+                inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }}
                 value={dueDay}
-                onChange={(e) => setDueDay(Number(e.target.value))}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (/^\d*$/.test(value)) {
+                    setDueDay(value);
+                  }
+                }}
                 fullWidth
               />
             )}

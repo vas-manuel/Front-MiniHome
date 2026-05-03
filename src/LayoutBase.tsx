@@ -151,7 +151,16 @@ export default function LayoutBase({
             </IconButton>
           </Tooltip>
 
-          <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center", gap: 2 }}>
+          <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center", gap: 3 }}>
+            <Box
+              component="img"
+              src="/monihome-logo.png"
+              alt="MoniHome"
+              sx={{
+                height: 40,
+                display: "block",
+              }}
+            />
             <Box>
               <Typography sx={{ color: "#fff", fontWeight: 600 }}>
                 {title}

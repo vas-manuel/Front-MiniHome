@@ -151,11 +151,54 @@ export default function AdminExecutiveBoard() {
           ...history.map((r: any) => r.amount),
           forecastRegression,
         ],
-        borderColor: "#1976d2",
-        backgroundColor: "rgba(25,118,210,0.2)",
-        tension: 0.3,
+        borderColor: "#2F80ED",
+        backgroundColor: "rgba(47,128,237,0.15)",
+        tension: 0.4,
+        pointRadius: 5,
+        pointBackgroundColor: "#27AE60",
+        fill: true,
       },
     ],
+  };
+
+  const lineOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        labels: {
+          color: "#1F2937",
+          font: {
+            family: "Inter",
+            weight: 600,
+          },
+        },
+      },
+      tooltip: {
+        backgroundColor: "#ffffff",
+        titleColor: "#1F2937",
+        bodyColor: "#1F2937",
+        borderColor: "#2F80ED",
+        borderWidth: 1,
+      },
+    },
+    scales: {
+      x: {
+        ticks: {
+          color: "#6B7280",
+        },
+        grid: {
+          color: "rgba(0,0,0,0.05)",
+        },
+      },
+      y: {
+        ticks: {
+          color: "#6B7280",
+        },
+        grid: {
+          color: "rgba(0,0,0,0.05)",
+        },
+      },
+    },
   };
 
   const barData = {
@@ -164,9 +207,50 @@ export default function AdminExecutiveBoard() {
       {
         label: "Indicadores SaaS",
         data: [metrics.arr || 0, metrics.arpu || 0, metrics.ltv || 0],
-        backgroundColor: "#1976d2",
+        backgroundColor: ["#2F80ED", "#56CCF2", "#27AE60"],
+        borderRadius: 8,
       },
     ],
+  };
+
+  const barOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        labels: {
+          color: "#1F2937",
+          font: {
+            family: "Inter",
+            weight: 600,
+          },
+        },
+      },
+      tooltip: {
+        backgroundColor: "#ffffff",
+        titleColor: "#1F2937",
+        bodyColor: "#1F2937",
+        borderColor: "#2F80ED",
+        borderWidth: 1,
+      },
+    },
+    scales: {
+      x: {
+        ticks: {
+          color: "#6B7280",
+        },
+        grid: {
+          display: false,
+        },
+      },
+      y: {
+        ticks: {
+          color: "#6B7280",
+        },
+        grid: {
+          color: "rgba(0,0,0,0.05)",
+        },
+      },
+    },
   };
 
   return (
@@ -248,7 +332,7 @@ export default function AdminExecutiveBoard() {
             Último mes: ${lastMonthRevenue.toFixed(2)}
           </Typography>
         </Box>
-        <Line data={lineData} />
+        <Line data={lineData} options={lineOptions} />
       </Paper>
 
       {/* SECONDARY METRICS */}
@@ -257,7 +341,7 @@ export default function AdminExecutiveBoard() {
           <Typography variant="h6" mb={2}>
             Indicadores Financieros
           </Typography>
-          <Bar data={barData} />
+          <Bar data={barData} options={barOptions} />
         </Paper>
 
         <Paper sx={{ p: 3, flex: 1 }}>

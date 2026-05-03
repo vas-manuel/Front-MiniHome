@@ -377,7 +377,16 @@ function AuthScreen() {
 
   return (
     <Container maxWidth="sm" sx={{ mt: 10 }}>
-      <Paper sx={{ p: 4 }}>
+      <Paper sx={{ p: 4, textAlign: "center" }}>
+        <Box
+          component="img"
+          src="/monihome-logo.png"
+          alt="MoniHome"
+          sx={{
+            height: 80,
+            mb: 3,
+          }}
+        />
         <Typography variant="h5" mb={3}>
           {mode === "login" ? "Iniciar Sesión" : "Registrar Hogar"}
         </Typography>

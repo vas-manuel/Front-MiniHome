@@ -15,6 +15,7 @@ import {
   CssBaseline,
   createTheme,
 } from "@mui/material";
+import baseTheme from "./theme";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { GoogleReCaptchaProvider } from "react-google-recaptcha-v3";
 /* ✅ Autenticación ahora basada en cookies httpOnly */
@@ -88,18 +89,15 @@ function Root() {
 
   const theme = useMemo(
     () =>
-      createTheme({
+      createTheme(baseTheme, {
         palette: {
           mode,
-          primary: {
-            main: "#2563eb",
-          },
           background: {
-            default: mode === "light" ? "#f8fafc" : "#0f172a",
+            default:
+              mode === "light"
+                ? baseTheme.palette.background.default
+                : "#0f172a",
           },
-        },
-        shape: {
-          borderRadius: 12,
         },
       }),
     [mode]
