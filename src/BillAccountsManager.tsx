@@ -320,9 +320,12 @@ export default function BillAccountsManager() {
   const handleSave = async () => {
     const numericAmount = Number(amount);
 
-    if (!amount || isNaN(numericAmount)) {
-      alert("Ingrese un monto válido");
-      return;
+    // ✅ Validar monto solo para cuentas FIXED
+    if (type === "FIXED") {
+      if (!amount || isNaN(numericAmount)) {
+        alert("Ingrese un monto válido");
+        return;
+      }
     }
 
     if (editing) {
