@@ -28,8 +28,13 @@ export const ColorModeContext = createContext({
   toggleColorMode: () => {},
 });
 
-const API_URL =
+let API_URL =
   import.meta.env.VITE_API_URL?.trim() || "http://localhost:3030/graphql";
+
+// ✅ Asegurar que siempre apunte a /graphql
+if (!API_URL.endsWith("/graphql")) {
+  API_URL = API_URL.replace(/\/+$/, "") + "/graphql";
+}
 
 const httpLink = createHttpLink({
   uri: API_URL,
