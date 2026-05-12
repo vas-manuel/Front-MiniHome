@@ -45,6 +45,7 @@ const AdminFinancialDashboard = lazy(() => import("./AdminFinancialDashboard"));
 const AdminExecutiveBoard = lazy(() => import("./AdminExecutiveBoard"));
 const ExecutiveFinancialDashboard = lazy(() => import("./ExecutiveFinancialDashboard"));
 const PlanManager = lazy(() => import("./PlanManager"));
+const MerchantManager = lazy(() => import("./MerchantManager"));
 
 /* =======================
    GRAPHQL
@@ -154,6 +155,9 @@ function MainApp() {
         { key: "/financial", label: "Finanzas", icon: <AccountBalanceIcon /> },
         { key: "/executive", label: "Ejecutivo", icon: <DashboardIcon /> },
         { key: "/plans", label: "Planes", icon: <SettingsIcon /> },
+        ...(role === "SYSTEM_ADMIN"
+          ? [{ key: "/merchants", label: "Empresas", icon: <SettingsIcon /> }]
+          : []),
       ]
     : [
         { key: "/", label: "Dashboard", icon: <DashboardIcon /> },
@@ -285,6 +289,17 @@ function MainApp() {
             element={
               permissions.includes("plans") ? (
                 <PlanManager />
+              ) : (
+                <Navigate to="/no-access" />
+              )
+            }
+          />
+
+          <Route
+            path="/merchants"
+            element={
+              role === "SYSTEM_ADMIN" ? (
+                <MerchantManager />
               ) : (
                 <Navigate to="/no-access" />
               )
