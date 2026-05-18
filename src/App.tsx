@@ -39,6 +39,8 @@ const BillStructureManager = lazy(() => import("./BillStructureManager"));
 const BillAccountsManager = lazy(() => import("./BillAccountsManager"));
 const HouseholdUsersManager = lazy(() => import("./HouseholdUsersManager"));
 const HouseholdPanel = lazy(() => import("./HouseholdPanel"));
+const HouseholdIncomeManager = lazy(() => import("./HouseholdIncomeManager"));
+const SavingsManager = lazy(() => import("./SavingsManager"));
 
 const AdminDashboard = lazy(() => import("./AdminDashboard"));
 const AdminFinancialDashboard = lazy(() => import("./AdminFinancialDashboard"));
@@ -163,6 +165,8 @@ function MainApp() {
         { key: "/", label: "Dashboard", icon: <DashboardIcon /> },
         { key: "/accounts", label: "Estructura", icon: <AccountBalanceIcon /> },
         { key: "/bills", label: "Montos", icon: <AccountBalanceIcon /> },
+        { key: "/incomes", label: "Ingresos", icon: <AccountBalanceIcon /> },
+        { key: "/savings", label: "Ahorro", icon: <AccountBalanceIcon /> },
         { key: "/users", label: "Usuarios", icon: <PeopleIcon /> },
         { key: "/settings", label: "Configuración", icon: <SettingsIcon /> },
       ];
@@ -179,6 +183,10 @@ function MainApp() {
         return "accounts";
       case "/bills":
         return "bills";
+      case "/incomes":
+        return "householdSettings";
+      case "/savings":
+        return "householdSettings";
       case "/users":
         return "users";
       case "/settings":
@@ -239,6 +247,26 @@ function MainApp() {
             element={
               permissions.includes("bills") ? (
                 <BillAccountsManager />
+              ) : (
+                <Navigate to="/no-access" />
+              )
+            }
+          />
+          <Route
+            path="/incomes"
+            element={
+              permissions.includes("householdSettings") ? (
+                <HouseholdIncomeManager />
+              ) : (
+                <Navigate to="/no-access" />
+              )
+            }
+          />
+          <Route
+            path="/savings"
+            element={
+              permissions.includes("householdSettings") ? (
+                <SavingsManager />
               ) : (
                 <Navigate to="/no-access" />
               )
