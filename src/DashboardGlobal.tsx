@@ -53,6 +53,11 @@ const GET_DASHBOARD = gql`
       type
       amount
     }
+    householdIncomes {
+      year
+      month
+      amount
+    }
   }
 `;
 
@@ -318,9 +323,20 @@ export default function DashboardGlobal() {
         0
       );
 
-      if (y < year || (y === year && m <= month)) {
-        runningSavings = projectedSavings;
-      }
+      runningSavings = projectedSavings;
+
+      const projectedIncomeFromDB =
+        data?.householdIncomes
+          ?.filter(
+            (inc: any) =>
+              inc.year === y &&
+              inc.month === m
+          )
+          .reduce(
+            (sum: number, inc: any) =>
+              sum + (Number(inc.amount) || 0),
+            0
+          ) || 0;
 
       months.push({
         label: d.toLocaleDateString(locale, {
@@ -328,9 +344,8 @@ export default function DashboardGlobal() {
           year: "2-digit",
         }),
         income:
-          (y === year && m === month
-            ? currentIncome
-            : 0) + withdrawalIncome,
+          projectedIncomeFromDB +
+          withdrawalIncome,
         expense: projectedExpense,
         savings: projectedSavings,
       });
@@ -360,6 +375,58 @@ export default function DashboardGlobal() {
       : riskPercentage <= 100
       ? "warning"
       : "error";
+
+  /* =========================
+     ✅ PROYECCIÓN POR GRUPO (HOOK CORRECTO)
+  ========================= */
+
+  const groupProjection = useMemo(() => {
+    const months: any[] = [];
+    const groupNames = Object.keys(grouped);
+
+    for (let i = 0; i <= 12; i++) {
+      const d = new Date(year, month - 1 + i, 1);
+      const y = d.getFullYear();
+      const m = d.getMonth() + 1;
+
+      const monthData: any = {
+        label: d.toLocaleDateString(locale, {
+          month: "short",
+          year: "2-digit",
+        }),
+        groups: {},
+      };
+
+      groupNames.forEach((g) => {
+        monthData.groups[g] = 0;
+      });
+
+      data?.fixedAccountsWithAmounts?.forEach((acc: any) => {
+        const groupName =
+          acc.group?.name || "Sin Grupo";
+
+        acc.amounts.forEach((a: any) => {
+          if (a.year === y && a.month === m) {
+            monthData.groups[groupName] +=
+              Number(a.amount) || 0;
+          }
+        });
+      });
+
+      months.push(monthData);
+    }
+
+    return months;
+  }, [data, grouped, year, month, locale]);
+
+  const groupProjectionMax = Math.max(
+    ...groupProjection.flatMap((m: any) =>
+      Object.values(m.groups).map(
+        (v: any) => Number(v) || 0
+      )
+    ),
+    1
+  );
 
   if (loading) {
     return (
@@ -746,6 +813,128 @@ export default function DashboardGlobal() {
                 selectedProjection.savings
               )}
             </Typography>
+
+            <Typography
+              variant="caption"
+              sx={{
+                cursor: "pointer",
+                display: "block",
+                mt: 1,
+              }}
+              onClick={() =>
+                setSelectedProjection(null)
+              }
+            >
+              Cerrar
+            </Typography>
+          </Paper>
+        )}
+      </Paper>
+
+      {/* ✅ NUEVO: PROYECCIÓN POR GRUPOS (LINEAL + CLICK POR PERIODO) */}
+      <Paper sx={{ p: 3, mb: 4 }}>
+        <Typography variant="h6" mb={2}>
+          Proyección por Grupo (12 Meses)
+        </Typography>
+
+        <Box sx={{ overflowX: "auto" }}>
+          <svg
+            width={groupProjection.length * 90}
+            height={320}
+          >
+            {/* Líneas por grupo */}
+            {Object.keys(grouped).map((groupName, gi) => {
+              const color =
+                [
+                  "#1976d2",
+                  "#ef5350",
+                  "#2e7d32",
+                  "#ff9800",
+                  "#8e24aa",
+                  "#0097a7",
+                ][gi % 6];
+
+              const points = groupProjection
+                .map((monthData: any, i: number) => {
+                  const x = i * 90 + 40;
+                  const value =
+                    monthData.groups[groupName] || 0;
+                  const y =
+                    240 -
+                    (value / groupProjectionMax) *
+                      200;
+                  return `${x},${y}`;
+                })
+                .join(" ");
+
+              return (
+                <polyline
+                  key={groupName}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth="3"
+                  points={points}
+                />
+              );
+            })}
+
+            {/* Área clickable por periodo */}
+            {groupProjection.map((monthData: any, i: number) => {
+              const x = i * 90 + 40;
+
+              return (
+                <g key={i}>
+                  <rect
+                    x={x - 30}
+                    y={40}
+                    width={60}
+                    height={200}
+                    fill="transparent"
+                    style={{ cursor: "pointer" }}
+                    onClick={() =>
+                      setSelectedProjection({
+                        label: monthData.label,
+                        groups: monthData.groups,
+                      })
+                    }
+                  />
+
+                  <text
+                    x={x}
+                    y={270}
+                    textAnchor="middle"
+                    fontSize="10"
+                  >
+                    {monthData.label}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </Box>
+
+        {/* ✅ Detalle conjunto por periodo */}
+        {selectedProjection?.groups && (
+          <Paper
+            sx={{
+              mt: 3,
+              p: 2,
+              backgroundColor: "#fafafa",
+              border: "1px solid #e0e0e0",
+            }}
+          >
+            <Typography fontWeight={600}>
+              {selectedProjection.label}
+            </Typography>
+
+            {Object.entries(
+              selectedProjection.groups
+            ).map(([g, v]: any) => (
+              <Typography key={g}>
+                {g}: $
+                {formatCurrency(Number(v) || 0)}
+              </Typography>
+            ))}
 
             <Typography
               variant="caption"
