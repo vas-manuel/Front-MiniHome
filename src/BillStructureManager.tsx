@@ -144,13 +144,19 @@ export default function BillStructureManager() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const handleCreate = async () => {
-    let finalGroupId = groupId;
+    let finalGroupId: string | null = groupId || null;
 
-    if (!finalGroupId && groupNameInline) {
+    // ✅ Si se escribió un nuevo grupo, siempre priorizarlo
+    if (groupNameInline && groupNameInline.trim() !== "") {
       const res = await createGroup({
-        variables: { name: groupNameInline },
+        variables: { name: groupNameInline.trim() },
       });
+
       finalGroupId = res.data.createBillGroup.id;
+
+      // ✅ Actualizar select internamente (evitar null)
+      setGroupId(finalGroupId || "");
+
       await refetchGroups();
     }
 
@@ -159,7 +165,7 @@ export default function BillStructureManager() {
         variables: {
           id: editingId,
           name: accountName,
-          bill_group_id: finalGroupId || null,
+          bill_group_id: finalGroupId,
           due_day:
             tab === "FIXED" && dueDay
               ? Number(dueDay)
@@ -172,7 +178,7 @@ export default function BillStructureManager() {
         variables: {
           name: accountName,
           type: tab,
-          bill_group_id: finalGroupId || null,
+          bill_group_id: finalGroupId,
           due_day:
             tab === "FIXED" && dueDay
               ? Number(dueDay)
