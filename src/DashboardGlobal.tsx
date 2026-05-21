@@ -428,6 +428,77 @@ export default function DashboardGlobal() {
     1
   );
 
+  /* =========================
+     ✅ NUEVO: TENDENCIA SALDO NETO (Ingreso - Gasto - Ahorro)
+  ========================= */
+
+  const balanceTrend = useMemo(() => {
+    const months: any[] = [];
+
+    for (let i = 0; i <= 12; i++) {
+      const d = new Date(year, month - 1 + i, 1);
+      const y = d.getFullYear();
+      const m = d.getMonth() + 1;
+
+      let income = 0;
+      let expense = 0;
+      let savingsDeposit = 0;
+      let withdrawalIncome = 0;
+
+      data?.householdIncomes?.forEach((inc: any) => {
+        if (inc.year === y && inc.month === m) {
+          income += Number(inc.amount) || 0;
+        }
+      });
+
+      data?.fixedAccountsWithAmounts?.forEach((acc: any) => {
+        acc.amounts.forEach((a: any) => {
+          if (a.year === y && a.month === m) {
+            expense += Number(a.amount) || 0;
+          }
+        });
+      });
+
+      data?.savingsMovements?.forEach((s: any) => {
+        if (s.year === y && s.month === m) {
+          const amount = Number(s.amount) || 0;
+          if (s.type === "DEPOSIT") savingsDeposit += amount;
+          if (s.type === "WITHDRAW") withdrawalIncome += amount;
+        }
+      });
+
+      const totalIncome = income + withdrawalIncome;
+      const totalExpense = expense + savingsDeposit;
+
+      const balance = totalIncome - totalExpense;
+
+      const percentage =
+        totalIncome > 0
+          ? (balance / totalIncome) * 100
+          : 0;
+
+      months.push({
+        label: d.toLocaleDateString(locale, {
+          month: "short",
+          year: "2-digit",
+        }),
+        income: totalIncome,
+        expense: totalExpense,
+        balance,
+        percentage,
+      });
+    }
+
+    return months;
+  }, [data, year, month, locale]);
+
+  const balanceMax = Math.max(
+    ...balanceTrend.map((m) =>
+      Math.max(Math.abs(m.balance), m.income, m.expense)
+    ),
+    1
+  );
+
   if (loading) {
     return (
       <Box>
@@ -929,12 +1000,191 @@ export default function DashboardGlobal() {
 
             {Object.entries(
               selectedProjection.groups
-            ).map(([g, v]: any) => (
-              <Typography key={g}>
-                {g}: $
-                {formatCurrency(Number(v) || 0)}
-              </Typography>
-            ))}
+            ).map(([g, v]: any) => {
+              const groupNames = Object.keys(grouped);
+              const gi = groupNames.indexOf(g);
+              const color =
+                [
+                  "#1976d2",
+                  "#ef5350",
+                  "#2e7d32",
+                  "#ff9800",
+                  "#8e24aa",
+                  "#0097a7",
+                ][gi % 6];
+
+              return (
+                <Box
+                  key={g}
+                  display="flex"
+                  alignItems="center"
+                  gap={1}
+                >
+                  <Box
+                    sx={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: "50%",
+                      backgroundColor: color,
+                    }}
+                  />
+                  <Typography>
+                    {g}: $
+                    {formatCurrency(Number(v) || 0)}
+                  </Typography>
+                </Box>
+              );
+            })}
+
+            <Typography
+              fontWeight={700}
+              sx={{ mt: 1 }}
+            >
+              Total Gastos: $
+              {formatCurrency(
+                Object.values(
+                  selectedProjection.groups
+                ).reduce(
+                  (sum: number, v: any) =>
+                    sum + (Number(v) || 0),
+                  0
+                )
+              )}
+            </Typography>
+
+            <Typography
+              variant="caption"
+              sx={{
+                cursor: "pointer",
+                display: "block",
+                mt: 1,
+              }}
+              onClick={() =>
+                setSelectedProjection(null)
+              }
+            >
+              Cerrar
+            </Typography>
+          </Paper>
+        )}
+      </Paper>
+
+      {/* ✅ NUEVO GRÁFICO: SALDO A FAVOR / EN CONTRA */}
+      <Paper sx={{ p: 3, mb: 4 }}>
+        <Typography variant="h6" mb={2}>
+          Tendencia Saldo Neto (12 Meses)
+        </Typography>
+
+        <Box sx={{ overflowX: "auto" }}>
+          <svg width={balanceTrend.length * 90} height={320}>
+            {/* Línea cero */}
+            <line
+              x1="20"
+              x2={balanceTrend.length * 90}
+              y1="140"
+              y2="140"
+              stroke="#9e9e9e"
+              strokeDasharray="4"
+            />
+
+            {/* Línea balance */}
+            <polyline
+              fill="none"
+              stroke="#6a1b9a"
+              strokeWidth="3"
+              points={balanceTrend
+                .map((p, i) => {
+                  const x = i * 90 + 40;
+                  const y =
+                    140 -
+                    (p.balance / balanceMax) * 120;
+                  return `${x},${y}`;
+                })
+                .join(" ")}
+            />
+
+            {balanceTrend.map((p, i) => {
+              const x = i * 90 + 40;
+              const y =
+                140 -
+                (p.balance / balanceMax) * 120;
+
+              return (
+                <g key={i}>
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r="6"
+                    fill={
+                      p.balance >= 0
+                        ? "#2e7d32"
+                        : "#c62828"
+                    }
+                    style={{ cursor: "pointer" }}
+                    onClick={() =>
+                      setSelectedProjection(p)
+                    }
+                  />
+
+                  <text
+                    x={x}
+                    y={270}
+                    textAnchor="middle"
+                    fontSize="10"
+                  >
+                    {p.label}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </Box>
+
+        {selectedProjection?.balance !== undefined && (
+          <Paper
+            sx={{
+              mt: 3,
+              p: 2,
+              backgroundColor: "#fafafa",
+              border: "1px solid #e0e0e0",
+            }}
+          >
+            <Typography fontWeight={600}>
+              {selectedProjection.label}
+            </Typography>
+
+            <Typography color="#1976d2">
+              Ingresos: $
+              {formatCurrency(
+                selectedProjection.income
+              )}
+            </Typography>
+
+            <Typography color="#ef5350">
+              Gastos (incluye ahorro): $
+              {formatCurrency(
+                selectedProjection.expense
+              )}
+            </Typography>
+
+            <Typography
+              color={
+                selectedProjection.balance >= 0
+                  ? "#2e7d32"
+                  : "#c62828"
+              }
+            >
+              Saldo: $
+              {formatCurrency(
+                selectedProjection.balance
+              )}
+            </Typography>
+
+            <Typography variant="body2">
+              Variación:{" "}
+              {selectedProjection.percentage.toFixed(1)}
+              %
+            </Typography>
 
             <Typography
               variant="caption"
