@@ -5,17 +5,14 @@ import {
   Paper,
   TextField,
   Button,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  IconButton,
   Stack,
   MenuItem,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { useState } from "react";
+import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import { esES } from "@mui/x-data-grid/locales";
+import { IconButton, Tooltip } from "@mui/material";
+import { useMemo, useState } from "react";
 import { formatCurrency } from "./utils/format";
 
 const GET_INCOMES = gql`
@@ -63,19 +60,10 @@ export default function HouseholdIncomeManager() {
   const [month, setMonth] = useState(today.getMonth() + 1);
 
   const monthNames = [
-    "Enero",
-    "Febrero",
-    "Marzo",
-    "Abril",
-    "Mayo",
-    "Junio",
-    "Julio",
-    "Agosto",
-    "Septiembre",
-    "Octubre",
-    "Noviembre",
-    "Diciembre",
+    "Enero","Febrero","Marzo","Abril","Mayo","Junio",
+    "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre",
   ];
+
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
 
@@ -89,12 +77,14 @@ export default function HouseholdIncomeManager() {
   const handleCreate = async () => {
     if (!description || !amount) return;
 
+    const numericAmount = Number(amount.replace(/\./g, ""));
+
     await createIncome({
       variables: {
         year,
         month,
         description,
-        amount: Number(amount),
+        amount: numericAmount,
       },
     });
 
@@ -108,10 +98,43 @@ export default function HouseholdIncomeManager() {
     refetch();
   };
 
-  const total = (data?.householdIncomes || []).reduce(
-    (sum: number, i: any) => sum + Number(i.amount),
-    0
-  );
+  const rows = useMemo(() => {
+    return (data?.householdIncomes || []).map((income: any) => ({
+      id: income.id,
+      period: `${monthNames[income.month - 1]} ${income.year}`,
+      description: income.description,
+      amount: income.amount,
+    }));
+  }, [data]);
+
+  const columns: GridColDef[] = [
+    { field: "period", headerName: "Período", flex: 1 },
+    { field: "description", headerName: "Descripción", flex: 1.5 },
+    {
+      field: "amount",
+      headerName: "Monto",
+      flex: 1,
+      renderCell: (params) => (
+        <strong>${formatCurrency(params.value)}</strong>
+      ),
+    },
+    {
+      field: "actions",
+      headerName: "Acciones",
+      flex: 0.7,
+      sortable: false,
+      renderCell: (params) => (
+        <Tooltip title="Eliminar">
+          <IconButton
+            color="error"
+            onClick={() => handleDelete(params.row.id)}
+          >
+            <DeleteIcon />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
+  ];
 
   return (
     <Box>
@@ -158,9 +181,17 @@ export default function HouseholdIncomeManager() {
 
           <TextField
             label="Monto"
-            type="number"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/\./g, "");
+              if (/^[0-9]*$/.test(raw)) {
+                const formatted = raw
+                  ? new Intl.NumberFormat("es-CL").format(Number(raw))
+                  : "";
+                setAmount(formatted);
+              }
+            }}
+            inputMode="numeric"
             fullWidth
             sx={{ minWidth: 200 }}
           />
@@ -171,53 +202,17 @@ export default function HouseholdIncomeManager() {
         </Stack>
       </Paper>
 
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h6" mb={2}>
-          Ingresos del período
-        </Typography>
-
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Período</TableCell>
-              <TableCell>Descripción</TableCell>
-              <TableCell align="right">Monto</TableCell>
-              <TableCell align="center">Acción</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {(data?.householdIncomes || []).map((income: any) => (
-              <TableRow key={income.id}>
-                <TableCell>
-                  {monthNames[income.month - 1]} {income.year}
-                </TableCell>
-                <TableCell>{income.description}</TableCell>
-                <TableCell align="right">
-                  ${formatCurrency(income.amount)}
-                </TableCell>
-                <TableCell align="center">
-                  <IconButton
-                    color="error"
-                    onClick={() => handleDelete(income.id)}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-
-            <TableRow>
-              <TableCell />
-              <TableCell>
-                <strong>Total</strong>
-              </TableCell>
-              <TableCell align="right">
-                <strong>${formatCurrency(total)}</strong>
-              </TableCell>
-              <TableCell />
-            </TableRow>
-          </TableBody>
-        </Table>
+      <Paper sx={{ p: 2 }}>
+        <DataGrid
+          autoHeight
+          rows={rows}
+          columns={columns}
+          pageSizeOptions={[10, 20, 50]}
+          localeText={esES.components.MuiDataGrid.defaultProps.localeText}
+          initialState={{
+            pagination: { paginationModel: { pageSize: 20, page: 0 } },
+          }}
+        />
       </Paper>
     </Box>
   );

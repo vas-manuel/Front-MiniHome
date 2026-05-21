@@ -18,6 +18,7 @@ import {
   Skeleton,
 } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import { esES } from "@mui/x-data-grid/locales";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -324,9 +325,12 @@ export default function BillStructureManager() {
             <DataGrid
               rows={rows}
               columns={columns}
-              pageSizeOptions={[5, 10, 20]}
+              pageSizeOptions={[10, 20, 50]}
+              localeText={
+                esES.components.MuiDataGrid.defaultProps.localeText
+              }
               initialState={{
-                pagination: { paginationModel: { pageSize: 10, page: 0 } },
+                pagination: { paginationModel: { pageSize: 20, page: 0 } },
               }}
             />
           </div>

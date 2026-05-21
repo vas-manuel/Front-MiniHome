@@ -24,6 +24,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import ToggleOnIcon from "@mui/icons-material/ToggleOn";
 import ToggleOffIcon from "@mui/icons-material/ToggleOff";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import { esES } from "@mui/x-data-grid/locales";
 import { IconButton, Tooltip } from "@mui/material";
 
 /* =======================
@@ -336,6 +337,13 @@ export default function HouseholdUsersManager() {
               columns={columns}
               getRowId={(row: any) => row.id}
               disableRowSelectionOnClick
+              pageSizeOptions={[10, 20, 50]}
+              localeText={
+                esES.components.MuiDataGrid.defaultProps.localeText
+              }
+              initialState={{
+                pagination: { paginationModel: { pageSize: 20, page: 0 } },
+              }}
               sx={{
                 border: "none",
                 "& .MuiDataGrid-columnHeaders": {

@@ -5,17 +5,14 @@ import {
   Paper,
   TextField,
   Button,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
   Stack,
   MenuItem,
-  IconButton,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { useState } from "react";
+import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import { esES } from "@mui/x-data-grid/locales";
+import { IconButton, Tooltip } from "@mui/material";
+import { useMemo, useState } from "react";
 import { formatCurrency } from "./utils/format";
 
 const GET_SAVINGS = gql`
@@ -84,10 +81,9 @@ export default function SavingsManager() {
   const handleCreate = async () => {
     if (!description || !amount) return;
 
-    const numericAmount = Number(amount);
+    const numericAmount = Number(amount.replace(/\./g, ""));
     const currentSavingsTotal = Number(data?.savingsTotal || 0);
 
-    // ✅ Validar que no se retire más de lo ahorrado
     if (type === "WITHDRAW" && numericAmount > currentSavingsTotal) {
       alert("No puedes retirar un monto mayor al ahorro disponible.");
       return;
@@ -114,6 +110,46 @@ export default function SavingsManager() {
   };
 
   const savingsTotal = Number(data?.savingsTotal || 0);
+
+  const rows = useMemo(() => {
+    return (data?.savingsMovements || []).map((m: any) => ({
+      id: m.id,
+      period: `${monthNames[m.month - 1]} ${m.year}`,
+      type: m.type === "DEPOSIT" ? "Depósito" : "Retiro",
+      description: m.description,
+      amount: m.amount,
+    }));
+  }, [data]);
+
+  const columns: GridColDef[] = [
+    { field: "period", headerName: "Período", flex: 1 },
+    { field: "type", headerName: "Tipo", flex: 1 },
+    { field: "description", headerName: "Descripción", flex: 1.5 },
+    {
+      field: "amount",
+      headerName: "Monto",
+      flex: 1,
+      renderCell: (params) => (
+        <strong>${formatCurrency(params.value)}</strong>
+      ),
+    },
+    {
+      field: "actions",
+      headerName: "Acciones",
+      flex: 0.6,
+      sortable: false,
+      renderCell: (params) => (
+        <Tooltip title="Eliminar">
+          <IconButton
+            color="error"
+            onClick={() => handleDelete(params.row.id)}
+          >
+            <DeleteIcon />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
+  ];
 
   return (
     <Box>
@@ -171,9 +207,17 @@ export default function SavingsManager() {
 
           <TextField
             label="Monto"
-            type="number"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/\./g, "");
+              if (/^[0-9]*$/.test(raw)) {
+                const formatted = raw
+                  ? new Intl.NumberFormat("es-CL").format(Number(raw))
+                  : "";
+                setAmount(formatted);
+              }
+            }}
+            inputMode="numeric"
             fullWidth
             sx={{ minWidth: 200 }}
           />
@@ -184,46 +228,21 @@ export default function SavingsManager() {
         </Stack>
       </Paper>
 
-      <Paper sx={{ p: 3 }}>
+      <Paper sx={{ p: 2 }}>
         <Typography variant="h6" mb={2}>
           Saldo Actual: ${formatCurrency(savingsTotal)}
         </Typography>
 
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Período</TableCell>
-              <TableCell>Tipo</TableCell>
-              <TableCell>Descripción</TableCell>
-              <TableCell align="right">Monto</TableCell>
-              <TableCell />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {(data?.savingsMovements || []).map((m: any) => (
-              <TableRow key={m.id}>
-                <TableCell>
-                  {monthNames[m.month - 1]} {m.year}
-                </TableCell>
-                <TableCell>
-                  {m.type === "DEPOSIT" ? "Depósito" : "Retiro"}
-                </TableCell>
-                <TableCell>{m.description}</TableCell>
-                <TableCell align="right">
-                  ${formatCurrency(m.amount)}
-                </TableCell>
-                <TableCell align="center">
-                  <IconButton
-                    color="error"
-                    onClick={() => handleDelete(m.id)}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <DataGrid
+          autoHeight
+          rows={rows}
+          columns={columns}
+          pageSizeOptions={[10, 20, 50]}
+          localeText={esES.components.MuiDataGrid.defaultProps.localeText}
+          initialState={{
+            pagination: { paginationModel: { pageSize: 20, page: 0 } },
+          }}
+        />
       </Paper>
     </Box>
   );

@@ -18,6 +18,7 @@ import {
   Chip,
   Tooltip,
   IconButton,
+  Pagination,
 } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import AutorenewIcon from "@mui/icons-material/Autorenew";
@@ -318,7 +319,7 @@ export default function BillAccountsManager() {
   };
 
   const handleSave = async () => {
-    const numericAmount = Number(amount);
+    const numericAmount = Number(amount.replace(/\./g, ""));
 
     // ✅ Validar monto solo para cuentas FIXED
     if (type === "FIXED") {
@@ -449,7 +450,7 @@ export default function BillAccountsManager() {
             label={t("selectAccount") || "Select Account"}
           value={selectedAccount?.id || ""}
           onChange={(e) => {
-            const acc = accountsData?.billAccounts.find(
+            const acc = accountsData?.billAccounts?.find(
               (a: any) => a.id === e.target.value
             );
             setSelectedAccount(acc);
@@ -497,6 +498,7 @@ export default function BillAccountsManager() {
             ));
           })()}
         </TextField>
+
       </Stack>
 
       {selectedAccount && (
@@ -993,13 +995,16 @@ export default function BillAccountsManager() {
               label={t("amount") || "Amount"}
               value={amount}
               onChange={(e) => {
-                const value = e.target.value;
-                if (/^[0-9]*$/.test(value)) {
-                  setAmount(value);
+                const raw = e.target.value.replace(/\./g, "");
+                if (/^[0-9]*$/.test(raw)) {
+                  const formatted = raw
+                    ? new Intl.NumberFormat("es-CL").format(Number(raw))
+                    : "";
+                  setAmount(formatted);
                 }
               }}
               inputMode="numeric"
-              placeholder="Ej: 25000"
+              placeholder="Ej: 25.000"
               sx={{ mt: 2 }}
             />
           )}

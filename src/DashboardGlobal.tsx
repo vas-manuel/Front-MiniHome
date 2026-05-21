@@ -121,6 +121,17 @@ export default function DashboardGlobal() {
     Record<string, boolean>
   >({});
 
+  // ✅ Estado para tooltip interactivo del gráfico
+  const [selectedProjection, setSelectedProjection] = useState<any>(null);
+
+  // ✅ Control visibilidad líneas (leyenda interactiva)
+  const [showIncome, setShowIncome] = useState(true);
+  const [showExpense, setShowExpense] = useState(true);
+  const [showSavings, setShowSavings] = useState(true);
+
+  // ✅ Tooltip hover premium
+  const [hoverPoint, setHoverPoint] = useState<any>(null);
+
   const toggleGroup = (group: string) => {
     setOpenGroups((prev) => ({
       ...prev,
@@ -266,6 +277,75 @@ export default function DashboardGlobal() {
         )
       : 0;
 
+  /* =========================
+     ✅ PROYECCIÓN 12 MESES (SECCIÓN ADICIONAL)
+  ========================= */
+
+  const projection = useMemo(() => {
+    const months: any[] = [];
+    let runningSavings = savingsTotal;
+
+    for (let i = 0; i <= 12; i++) {
+      const d = new Date(year, month - 1 + i, 1);
+      const y = d.getFullYear();
+      const m = d.getMonth() + 1;
+
+      let projectedExpense = 0;
+      data?.fixedAccountsWithAmounts?.forEach((acc: any) => {
+        acc.amounts.forEach((a: any) => {
+          if (a.year === y && a.month === m) {
+            projectedExpense += Number(a.amount) || 0;
+          }
+        });
+      });
+
+      let movement = 0;
+      let withdrawalIncome = 0;
+
+      data?.savingsMovements?.forEach((s: any) => {
+        if (s.year === y && s.month === m) {
+          const amount = Number(s.amount) || 0;
+          if (s.type === "DEPOSIT") movement += amount;
+          if (s.type === "WITHDRAW") {
+            movement -= amount;
+            withdrawalIncome += amount;
+          }
+        }
+      });
+
+      const projectedSavings = Math.max(
+        runningSavings + movement,
+        0
+      );
+
+      if (y < year || (y === year && m <= month)) {
+        runningSavings = projectedSavings;
+      }
+
+      months.push({
+        label: d.toLocaleDateString(locale, {
+          month: "short",
+          year: "2-digit",
+        }),
+        income:
+          (y === year && m === month
+            ? currentIncome
+            : 0) + withdrawalIncome,
+        expense: projectedExpense,
+        savings: projectedSavings,
+      });
+    }
+
+    return months;
+  }, [data, savingsTotal, currentIncome]);
+
+  const projectionMax = Math.max(
+    ...projection.map((p) =>
+      Math.max(p.income, p.expense, p.savings)
+    ),
+    1
+  );
+
   const riskPercentage =
     currentIncome > 0
       ? Math.min(
@@ -384,6 +464,305 @@ export default function DashboardGlobal() {
           />
         </Paper>
       )}
+
+      {/* ✅ PROYECCIÓN FINANCIERA */}
+      <Paper sx={{ p: 3, mb: 4 }}>
+        <Typography variant="h6" mb={2}>
+          Proyección 12 Meses
+        </Typography>
+
+        {/* ✅ Leyenda interactiva */}
+        <Box display="flex" gap={3} mb={2}>
+          <Typography
+            variant="caption"
+            sx={{ cursor: "pointer", opacity: showIncome ? 1 : 0.4 }}
+            onClick={() => setShowIncome(!showIncome)}
+            color="#1976d2"
+          >
+            ━ Ingreso
+          </Typography>
+
+          <Typography
+            variant="caption"
+            sx={{ cursor: "pointer", opacity: showExpense ? 1 : 0.4 }}
+            onClick={() => setShowExpense(!showExpense)}
+            color="#ef5350"
+          >
+            ━ Gasto
+          </Typography>
+
+          <Typography
+            variant="caption"
+            sx={{ cursor: "pointer", opacity: showSavings ? 1 : 0.4 }}
+            onClick={() => setShowSavings(!showSavings)}
+            color="#2e7d32"
+          >
+            ━ Ahorro
+          </Typography>
+        </Box>
+
+        <Box sx={{ overflowX: "auto" }}>
+          <svg width={projection.length * 90} height={320}>
+            
+            {/* ✅ EJE Y */}
+            {[0.25, 0.5, 0.75, 1].map((ratio, i) => {
+              const y = 240 - 200 * ratio;
+              return (
+                <g key={i}>
+                  <line
+                    x1="20"
+                    x2={projection.length * 90}
+                    y1={y}
+                    y2={y}
+                    stroke="#eeeeee"
+                  />
+                  <text
+                    x="0"
+                    y={y + 4}
+                    fontSize="10"
+                  >
+                    {formatCurrency(projectionMax * ratio)}
+                  </text>
+                </g>
+              );
+            })}
+            {/* ✅ Área sombreada Ingreso vs Gasto */}
+            <polygon
+              fill="rgba(25,118,210,0.08)"
+              points={
+                projection
+                  .map((p, i) => {
+                    const x = i * 90 + 40;
+                    const y =
+                      240 -
+                      (p.income / projectionMax) * 200;
+                    return `${x},${y}`;
+                  })
+                  .join(" ") +
+                " " +
+                projection
+                  .slice()
+                  .reverse()
+                  .map((p, i) => {
+                    const x =
+                      (projection.length - 1 - i) *
+                        90 +
+                      40;
+                    const y =
+                      240 -
+                      (p.expense / projectionMax) *
+                        200;
+                    return `${x},${y}`;
+                  })
+                  .join(" ")
+              }
+            />
+
+            {/* ✅ Ingreso */}
+            {showIncome && (
+              <polyline
+                fill="none"
+                stroke="#1976d2"
+                strokeWidth="3"
+                style={{ transition: "all 0.6s ease" }}
+                points={projection
+                  .map((p, i) => {
+                    const x = i * 90 + 40;
+                    const y =
+                      240 -
+                      (p.income / projectionMax) *
+                        200;
+                    return `${x},${y}`;
+                  })
+                  .join(" ")}
+              />
+            )}
+
+            {/* ✅ Gasto */}
+            {showExpense && (
+              <polyline
+                fill="none"
+                stroke="#ef5350"
+                strokeWidth="3"
+                style={{ transition: "all 0.6s ease" }}
+                points={projection
+                  .map((p, i) => {
+                    const x = i * 90 + 40;
+                    const y =
+                      240 -
+                      (p.expense / projectionMax) *
+                        200;
+                    return `${x},${y}`;
+                  })
+                  .join(" ")}
+              />
+            )}
+
+            {/* ✅ Ahorro */}
+            {showSavings && (
+              <polyline
+                fill="none"
+                stroke="#2e7d32"
+                strokeWidth="3"
+                style={{ transition: "all 0.6s ease" }}
+                points={projection
+                  .map((p, i) => {
+                    const x = i * 90 + 40;
+                    const y =
+                      240 -
+                      (p.savings / projectionMax) *
+                        200;
+                    return `${x},${y}`;
+                  })
+                  .join(" ")}
+              />
+            )}
+
+            {/* ✅ Línea vertical mes actual */}
+            <line
+              x1={2 * 90 + 40}
+              x2={2 * 90 + 40}
+              y1="40"
+              y2="240"
+              stroke="#9e9e9e"
+              strokeDasharray="4"
+            />
+
+            {/* ✅ Puntos interactivos reales */}
+            {projection.map((p, i) => {
+              const x = i * 90 + 40;
+
+              const incomeY =
+                240 - (p.income / projectionMax) * 200;
+              const expenseY =
+                240 - (p.expense / projectionMax) * 200;
+              const savingsY =
+                240 - (p.savings / projectionMax) * 200;
+
+              return (
+                <g key={i}>
+                  {showIncome && (
+                    <circle
+                      cx={x}
+                      cy={incomeY}
+                      r="6"
+                      fill="#1976d2"
+                      style={{ cursor: "pointer" }}
+                      onMouseEnter={() => setHoverPoint(p)}
+                      onMouseLeave={() => setHoverPoint(null)}
+                      onClick={() =>
+                        setSelectedProjection(p)
+                      }
+                    />
+                  )}
+                  <circle
+                    cx={x}
+                    cy={expenseY}
+                    r="6"
+                    fill={
+                      p.expense > p.income
+                        ? "#b71c1c"
+                        : "#ef5350"
+                    }
+                    style={{ cursor: "pointer" }}
+                    onClick={() =>
+                      setSelectedProjection(p)
+                    }
+                  />
+                  <circle
+                    cx={x}
+                    cy={savingsY}
+                    r="6"
+                    fill="#2e7d32"
+                    style={{ cursor: "pointer" }}
+                    onClick={() =>
+                      setSelectedProjection(p)
+                    }
+                  />
+
+                  <text
+                    x={x}
+                    y={270}
+                    textAnchor="middle"
+                    fontSize="10"
+                  >
+                    {p.label}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </Box>
+
+        {/* ✅ Tooltip flotante hover premium */}
+        {hoverPoint && (
+          <Box
+            sx={{
+              position: "absolute",
+              background: "white",
+              border: "1px solid #e0e0e0",
+              p: 1,
+              borderRadius: 1,
+              boxShadow: 3,
+            }}
+          >
+            <Typography variant="caption">
+              {hoverPoint.label}
+            </Typography>
+          </Box>
+        )}
+
+        {/* ✅ Panel detalle interactivo */}
+        {selectedProjection && (
+          <Paper
+            sx={{
+              mt: 3,
+              p: 2,
+              backgroundColor: "#fafafa",
+              border: "1px solid #e0e0e0",
+            }}
+          >
+            <Typography fontWeight={600}>
+              {selectedProjection.label}
+            </Typography>
+
+            <Typography color="#1976d2">
+              Ingreso: $
+              {formatCurrency(
+                selectedProjection.income
+              )}
+            </Typography>
+
+            <Typography color="#ef5350">
+              Gasto: $
+              {formatCurrency(
+                selectedProjection.expense
+              )}
+            </Typography>
+
+            <Typography color="#2e7d32">
+              Ahorro: $
+              {formatCurrency(
+                selectedProjection.savings
+              )}
+            </Typography>
+
+            <Typography
+              variant="caption"
+              sx={{
+                cursor: "pointer",
+                display: "block",
+                mt: 1,
+              }}
+              onClick={() =>
+                setSelectedProjection(null)
+              }
+            >
+              Cerrar
+            </Typography>
+          </Paper>
+        )}
+      </Paper>
 
       {/* TABLA COMPLETA 5 MESES RESTAURADA */}
       <Paper elevation={2}>

@@ -25,6 +25,10 @@ import DashboardIcon from "@mui/icons-material/Dashboard";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import PeopleIcon from "@mui/icons-material/People";
 import SettingsIcon from "@mui/icons-material/Settings";
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import SavingsIcon from "@mui/icons-material/Savings";
 
 import LayoutBase from "./LayoutBase";
 import { getEffectivePermissions } from "./permissions";
@@ -163,10 +167,10 @@ function MainApp() {
       ]
     : [
         { key: "/", label: "Dashboard", icon: <DashboardIcon /> },
-        { key: "/accounts", label: "Estructura", icon: <AccountBalanceIcon /> },
-        { key: "/bills", label: "Montos", icon: <AccountBalanceIcon /> },
-        { key: "/incomes", label: "Ingresos", icon: <AccountBalanceIcon /> },
-        { key: "/savings", label: "Ahorro", icon: <AccountBalanceIcon /> },
+        { key: "/accounts", label: "Estructura", icon: <AccountTreeIcon /> },
+        { key: "/bills", label: "Montos", icon: <ReceiptLongIcon /> },
+        { key: "/incomes", label: "Ingresos", icon: <TrendingUpIcon /> },
+        { key: "/savings", label: "Ahorro", icon: <SavingsIcon /> },
         { key: "/users", label: "Usuarios", icon: <PeopleIcon /> },
         { key: "/settings", label: "Configuración", icon: <SettingsIcon /> },
       ];
