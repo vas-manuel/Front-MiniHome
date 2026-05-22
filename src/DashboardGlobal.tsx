@@ -288,7 +288,23 @@ export default function DashboardGlobal() {
 
   const projection = useMemo(() => {
     const months: any[] = [];
-    let runningSavings = savingsTotal;
+
+    // ✅ Calcular ahorro base SOLO hasta el mes anterior al actual
+    let runningSavings = 0;
+
+    const currentDateKey = year * 100 + month;
+
+    data?.savingsMovements?.forEach((s: any) => {
+      const movementKey = s.year * 100 + s.month;
+      const amount = Number(s.amount) || 0;
+
+      if (movementKey < currentDateKey) {
+        if (s.type === "DEPOSIT") runningSavings += amount;
+        if (s.type === "WITHDRAW") runningSavings -= amount;
+      }
+    });
+
+    runningSavings = Math.max(runningSavings, 0);
 
     for (let i = 0; i <= 12; i++) {
       const d = new Date(year, month - 1 + i, 1);
@@ -318,12 +334,7 @@ export default function DashboardGlobal() {
         }
       });
 
-      const projectedSavings = Math.max(
-        runningSavings + movement,
-        0
-      );
-
-      runningSavings = projectedSavings;
+      runningSavings = Math.max(runningSavings + movement, 0);
 
       const projectedIncomeFromDB =
         data?.householdIncomes
@@ -347,12 +358,12 @@ export default function DashboardGlobal() {
           projectedIncomeFromDB +
           withdrawalIncome,
         expense: projectedExpense,
-        savings: projectedSavings,
+        savings: runningSavings,
       });
     }
 
     return months;
-  }, [data, savingsTotal, currentIncome]);
+  }, [data, year, month, locale]);
 
   const projectionMax = Math.max(
     ...projection.map((p) =>
