@@ -190,9 +190,31 @@ export default function DashboardGlobal() {
     data?.fixedAccountsWithAmounts?.forEach((acc: any) => {
       const amountMap: Record<string, number> = {};
 
-      acc.amounts.forEach((a: any) => {
-        amountMap[`${a.year}-${a.month}`] =
-          Number(a.amount) || 0;
+      // ✅ Ordenar meses cronológicamente según ventana
+      let carryOver = 0;
+
+      monthWindow.forEach((m) => {
+        const record = acc.amounts.find(
+          (a: any) =>
+            a.year === m.year &&
+            a.month === m.month
+        );
+
+        let currentValue = record
+          ? Number(record.amount) || 0
+          : 0;
+
+        // ✅ Si el mes anterior tuvo postergación, se acumula
+        currentValue += carryOver;
+
+        // ✅ Si este mes está postergado, se traslada al siguiente
+        if (record?.isDeferred) {
+          carryOver = currentValue;
+          amountMap[m.key] = 0; // no se cobra este mes
+        } else {
+          amountMap[m.key] = currentValue;
+          carryOver = 0;
+        }
       });
 
       const groupName =
@@ -513,6 +535,26 @@ export default function DashboardGlobal() {
     1
   );
 
+  // ✅ Promedio móvil simple (3 meses)
+  const movingAverage = balanceTrend.map((_, i, arr) => {
+    const slice = arr.slice(Math.max(0, i - 2), i + 1);
+    const avg =
+      slice.reduce((sum, v) => sum + v.balance, 0) /
+      slice.length;
+    return avg;
+  });
+
+  // ✅ Detectar cruce bajo cero
+  const zeroCrossIndexes = balanceTrend
+    .map((p, i, arr) =>
+      i > 0 &&
+      ((arr[i - 1].balance >= 0 && p.balance < 0) ||
+        (arr[i - 1].balance < 0 && p.balance >= 0))
+        ? i
+        : null
+    )
+    .filter((v) => v !== null);
+
   if (loading) {
     return (
       <Box>
@@ -655,9 +697,25 @@ export default function DashboardGlobal() {
 
         <Box sx={{ overflowX: "auto" }}>
           <svg width={projection.length * 90} height={320}>
-            
-            {/* ✅ EJE Y */}
-            {[0.25, 0.5, 0.75, 1].map((ratio, i) => {
+            <defs>
+              <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#1976d2" />
+                <stop offset="100%" stopColor="#42a5f5" />
+              </linearGradient>
+
+              <linearGradient id="expenseGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#c62828" />
+                <stop offset="100%" stopColor="#ef5350" />
+              </linearGradient>
+
+              <linearGradient id="savingsGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#2e7d32" />
+                <stop offset="100%" stopColor="#66bb6a" />
+              </linearGradient>
+            </defs>
+
+            {/* ✅ Grid horizontal mejorado */}
+            {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
               const y = 240 - 200 * ratio;
               return (
                 <g key={i}>
@@ -666,7 +724,8 @@ export default function DashboardGlobal() {
                     x2={projection.length * 90}
                     y1={y}
                     y2={y}
-                    stroke="#eeeeee"
+                    stroke={ratio === 0 ? "#9e9e9e" : "#eeeeee"}
+                    strokeDasharray={ratio === 0 ? "4" : "2"}
                   />
                   <text
                     x="0"
@@ -712,62 +771,134 @@ export default function DashboardGlobal() {
 
             {/* ✅ Ingreso */}
             {showIncome && (
-              <polyline
-                fill="none"
-                stroke="#1976d2"
-                strokeWidth="3"
-                style={{ transition: "all 0.6s ease" }}
-                points={projection
-                  .map((p, i) => {
-                    const x = i * 90 + 40;
-                    const y =
-                      240 -
-                      (p.income / projectionMax) *
-                        200;
-                    return `${x},${y}`;
-                  })
-                  .join(" ")}
-              />
+              <>
+                <polygon
+                  fill="url(#incomeGradient)"
+                  opacity="0.08"
+                  points={
+                    projection
+                      .map((p, i) => {
+                        const x = i * 90 + 40;
+                        const y =
+                          240 -
+                          (p.income / projectionMax) *
+                            200;
+                        return `${x},${y}`;
+                      })
+                      .join(" ") +
+                    ` ${projection
+                      .map((_, i) => `${i * 90 + 40},240`)
+                      .reverse()
+                      .join(" ")}`
+                  }
+                />
+
+                <polyline
+                  fill="none"
+                  stroke="url(#incomeGradient)"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  points={projection
+                    .map((p, i) => {
+                      const x = i * 90 + 40;
+                      const y =
+                        240 -
+                        (p.income / projectionMax) *
+                          200;
+                      return `${x},${y}`;
+                    })
+                    .join(" ")}
+                />
+              </>
             )}
 
             {/* ✅ Gasto */}
             {showExpense && (
-              <polyline
-                fill="none"
-                stroke="#ef5350"
-                strokeWidth="3"
-                style={{ transition: "all 0.6s ease" }}
-                points={projection
-                  .map((p, i) => {
-                    const x = i * 90 + 40;
-                    const y =
-                      240 -
-                      (p.expense / projectionMax) *
-                        200;
-                    return `${x},${y}`;
-                  })
-                  .join(" ")}
-              />
+              <>
+                <polygon
+                  fill="url(#expenseGradient)"
+                  opacity="0.08"
+                  points={
+                    projection
+                      .map((p, i) => {
+                        const x = i * 90 + 40;
+                        const y =
+                          240 -
+                          (p.expense / projectionMax) *
+                            200;
+                        return `${x},${y}`;
+                      })
+                      .join(" ") +
+                    ` ${projection
+                      .map((_, i) => `${i * 90 + 40},240`)
+                      .reverse()
+                      .join(" ")}`
+                  }
+                />
+
+                <polyline
+                  fill="none"
+                  stroke="url(#expenseGradient)"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  points={projection
+                    .map((p, i) => {
+                      const x = i * 90 + 40;
+                      const y =
+                        240 -
+                        (p.expense / projectionMax) *
+                          200;
+                      return `${x},${y}`;
+                    })
+                    .join(" ")}
+                />
+              </>
             )}
 
             {/* ✅ Ahorro */}
             {showSavings && (
-              <polyline
-                fill="none"
-                stroke="#2e7d32"
-                strokeWidth="3"
-                style={{ transition: "all 0.6s ease" }}
-                points={projection
-                  .map((p, i) => {
-                    const x = i * 90 + 40;
-                    const y =
-                      240 -
-                      (p.savings / projectionMax) *
-                        200;
-                    return `${x},${y}`;
-                  })
-                  .join(" ")}
-              />
+              <>
+                <polygon
+                  fill="url(#savingsGradient)"
+                  opacity="0.08"
+                  points={
+                    projection
+                      .map((p, i) => {
+                        const x = i * 90 + 40;
+                        const y =
+                          240 -
+                          (p.savings / projectionMax) *
+                            200;
+                        return `${x},${y}`;
+                      })
+                      .join(" ") +
+                    ` ${projection
+                      .map((_, i) => `${i * 90 + 40},240`)
+                      .reverse()
+                      .join(" ")}`
+                  }
+                />
+
+                <polyline
+                  fill="none"
+                  stroke="url(#savingsGradient)"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  points={projection
+                    .map((p, i) => {
+                      const x = i * 90 + 40;
+                      const y =
+                        240 -
+                        (p.savings / projectionMax) *
+                          200;
+                      return `${x},${y}`;
+                    })
+                    .join(" ")}
+                />
+              </>
             )}
 
             {/* ✅ Línea vertical mes actual */}
@@ -927,6 +1058,12 @@ export default function DashboardGlobal() {
             width={groupProjection.length * 90}
             height={320}
           >
+            <defs>
+              <linearGradient id="groupGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#3949ab" />
+                <stop offset="100%" stopColor="#9fa8da" />
+              </linearGradient>
+            </defs>
             {/* Líneas por grupo */}
             {Object.keys(grouped).map((groupName, gi) => {
               const color =
@@ -953,13 +1090,17 @@ export default function DashboardGlobal() {
                 .join(" ");
 
               return (
-                <polyline
-                  key={groupName}
-                  fill="none"
-                  stroke={color}
-                  strokeWidth="3"
-                  points={points}
-                />
+                <>
+                  <polyline
+                    key={groupName}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    points={points}
+                  />
+                </>
               );
             })}
 
@@ -1091,17 +1232,32 @@ export default function DashboardGlobal() {
 
         <Box sx={{ overflowX: "auto" }}>
           <svg width={balanceTrend.length * 90} height={320}>
-            {/* Línea cero */}
-            <line
-              x1="20"
-              x2={balanceTrend.length * 90}
-              y1="140"
-              y2="140"
-              stroke="#9e9e9e"
-              strokeDasharray="4"
-            />
+            <defs>
+              {/* ✅ Gradiente dinámico */}
+              <linearGradient id="balanceGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#2e7d32" />
+                <stop offset="50%" stopColor="#6a1b9a" />
+                <stop offset="100%" stopColor="#c62828" />
+              </linearGradient>
+            </defs>
 
-            {/* ✅ Área sombreada balance */}
+            {/* ✅ Líneas guía horizontales */}
+            {[ -1, -0.5, 0, 0.5, 1 ].map((ratio, i) => {
+              const y = 140 - ratio * 120;
+              return (
+                <line
+                  key={i}
+                  x1="20"
+                  x2={balanceTrend.length * 90}
+                  y1={y}
+                  y2={y}
+                  stroke={ratio === 0 ? "#9e9e9e" : "#eeeeee"}
+                  strokeDasharray={ratio === 0 ? "4" : "2"}
+                />
+              );
+            })}
+
+            {/* ✅ Área sombreada */}
             <polygon
               fill="rgba(106,27,154,0.08)"
               points={
@@ -1121,13 +1277,18 @@ export default function DashboardGlobal() {
               }
             />
 
-            {/* ✅ Línea balance mejorada */}
+            {/* ✅ Línea principal animada */}
             <polyline
               fill="none"
-              stroke="#6a1b9a"
+              stroke="url(#balanceGradient)"
               strokeWidth="4"
               strokeLinecap="round"
               strokeLinejoin="round"
+              style={{
+                strokeDasharray: 1000,
+                strokeDashoffset: 0,
+                animation: "dash 1.5s ease-out"
+              }}
               points={balanceTrend
                 .map((p, i) => {
                   const x = i * 90 + 40;
@@ -1138,6 +1299,39 @@ export default function DashboardGlobal() {
                 })
                 .join(" ")}
             />
+
+            {/* ✅ Línea promedio móvil */}
+            <polyline
+              fill="none"
+              stroke="#ff9800"
+              strokeWidth="2"
+              strokeDasharray="6"
+              points={movingAverage
+                .map((avg, i) => {
+                  const x = i * 90 + 40;
+                  const y =
+                    140 -
+                    (avg / balanceMax) * 120;
+                  return `${x},${y}`;
+                })
+                .join(" ")}
+            />
+
+            {/* ✅ Indicador visual cruce cero */}
+            {zeroCrossIndexes.map((i) => {
+              const x = i * 90 + 40;
+              return (
+                <line
+                  key={"cross-" + i}
+                  x1={x}
+                  x2={x}
+                  y1="20"
+                  y2="260"
+                  stroke="#ff1744"
+                  strokeDasharray="3"
+                />
+              );
+            })}
 
             {balanceTrend.map((p, i) => {
               const x = i * 90 + 40;
@@ -1159,6 +1353,8 @@ export default function DashboardGlobal() {
                     stroke="#ffffff"
                     strokeWidth="2"
                     style={{ cursor: "pointer" }}
+                    onMouseEnter={() => setHoverPoint(p)}
+                    onMouseLeave={() => setHoverPoint(null)}
                     onClick={() =>
                       setSelectedProjection(p)
                     }
@@ -1188,6 +1384,27 @@ export default function DashboardGlobal() {
             })}
           </svg>
         </Box>
+
+        {hoverPoint && (
+          <Box
+            sx={{
+              position: "absolute",
+              background: "#ffffff",
+              border: "1px solid #ddd",
+              p: 1.5,
+              borderRadius: 2,
+              boxShadow: 4,
+              mt: -2
+            }}
+          >
+            <Typography variant="caption" fontWeight={600}>
+              {hoverPoint.label}
+            </Typography>
+            <Typography fontSize={12}>
+              Saldo: ${formatCurrency(hoverPoint.balance)}
+            </Typography>
+          </Box>
+        )}
 
         {selectedProjection?.balance !== undefined && (
           <Paper
