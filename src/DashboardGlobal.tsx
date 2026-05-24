@@ -479,6 +479,8 @@ export default function DashboardGlobal() {
       });
 
       const totalIncome = income + withdrawalIncome;
+
+      // ✅ El ahorro es gasto real del mes
       const totalExpense = expense + savingsDeposit;
 
       const balance = totalIncome - totalExpense;
@@ -495,6 +497,7 @@ export default function DashboardGlobal() {
         }),
         income: totalIncome,
         expense: totalExpense,
+        savingsDeposit,
         balance,
         percentage,
       });
@@ -1098,11 +1101,33 @@ export default function DashboardGlobal() {
               strokeDasharray="4"
             />
 
-            {/* Línea balance */}
+            {/* ✅ Área sombreada balance */}
+            <polygon
+              fill="rgba(106,27,154,0.08)"
+              points={
+                balanceTrend
+                  .map((p, i) => {
+                    const x = i * 90 + 40;
+                    const y =
+                      140 -
+                      (p.balance / balanceMax) * 120;
+                    return `${x},${y}`;
+                  })
+                  .join(" ") +
+                ` ${balanceTrend
+                  .map((_, i) => `${i * 90 + 40},140`)
+                  .reverse()
+                  .join(" ")}`
+              }
+            />
+
+            {/* ✅ Línea balance mejorada */}
             <polyline
               fill="none"
               stroke="#6a1b9a"
-              strokeWidth="3"
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
               points={balanceTrend
                 .map((p, i) => {
                   const x = i * 90 + 40;
@@ -1125,17 +1150,30 @@ export default function DashboardGlobal() {
                   <circle
                     cx={x}
                     cy={y}
-                    r="6"
+                    r="7"
                     fill={
                       p.balance >= 0
                         ? "#2e7d32"
                         : "#c62828"
                     }
+                    stroke="#ffffff"
+                    strokeWidth="2"
                     style={{ cursor: "pointer" }}
                     onClick={() =>
                       setSelectedProjection(p)
                     }
                   />
+
+                  {/* ✅ Valor visible arriba del punto */}
+                  <text
+                    x={x}
+                    y={y - 12}
+                    textAnchor="middle"
+                    fontSize="10"
+                    fill="#424242"
+                  >
+                    {formatCurrency(p.balance)}
+                  </text>
 
                   <text
                     x={x}
@@ -1172,7 +1210,21 @@ export default function DashboardGlobal() {
             </Typography>
 
             <Typography color="#ef5350">
-              Gastos (incluye ahorro): $
+              Gastos: $
+              {formatCurrency(
+                selectedProjection.expense - selectedProjection.savingsDeposit
+              )}
+            </Typography>
+
+            <Typography color="#ff9800">
+              Ahorro del mes: $
+              {formatCurrency(
+                selectedProjection.savingsDeposit
+              )}
+            </Typography>
+
+            <Typography fontWeight={600}>
+              Total Salidas: $
               {formatCurrency(
                 selectedProjection.expense
               )}
