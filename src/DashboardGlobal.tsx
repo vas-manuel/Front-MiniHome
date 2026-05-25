@@ -289,6 +289,25 @@ export default function DashboardGlobal() {
     data?.savingsTotal || 0
   );
 
+  // ✅ Ahorro REAL solo hasta el periodo actual (no incluye futuro)
+  const realSavingsToDate = useMemo(() => {
+    let total = 0;
+
+    const currentKey = year * 100 + month;
+
+    data?.savingsMovements?.forEach((m: any) => {
+      const movementKey = m.year * 100 + m.month;
+      const amount = Number(m.amount) || 0;
+
+      if (movementKey <= currentKey) {
+        if (m.type === "DEPOSIT") total += amount;
+        if (m.type === "WITHDRAW") total -= amount;
+      }
+    });
+
+    return Math.max(total, 0);
+  }, [data, year, month]);
+
   const savingsGoal = Number(
     data?.me?.household?.savingsGoal || 0
   );
@@ -299,7 +318,7 @@ export default function DashboardGlobal() {
   const savingsProgress =
     savingsGoal > 0
       ? Math.min(
-          (savingsTotal / savingsGoal) * 100,
+          (realSavingsToDate / savingsGoal) * 100,
           100
         )
       : 0;
@@ -588,7 +607,7 @@ export default function DashboardGlobal() {
           },
           {
             label: "Ahorro Acumulado",
-            value: savingsTotal,
+            value: realSavingsToDate,
           },
         ].map((item, i) => (
           <Card
