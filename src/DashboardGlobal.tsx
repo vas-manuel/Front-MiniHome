@@ -214,13 +214,8 @@ export default function DashboardGlobal() {
         }
       });
 
-      // ✅ 2. Construir línea de tiempo completa (histórico + ventana)
-      const allKeysSet = new Set<string>([
-        ...Object.keys(monthAggregation),
-        ...monthWindow.map((m) => m.key),
-      ]);
-
-      const sortedKeys = Array.from(allKeysSet).sort(
+      // ✅ 2. Procesar SOLO meses reales en orden cronológico
+      const sortedKeys = Object.keys(monthAggregation).sort(
         (a, b) => {
           const [y1, m1] = a.split("-").map(Number);
           const [y2, m2] = b.split("-").map(Number);
@@ -229,24 +224,24 @@ export default function DashboardGlobal() {
       );
 
       let carryOver = 0;
+      const calculatedMap: Record<string, number> = {};
 
       sortedKeys.forEach((key) => {
-        const monthData = monthAggregation[key];
-        const total = monthData?.total || 0;
-        const deferred = monthData?.deferred || false;
+        const { total, deferred } = monthAggregation[key];
 
         if (deferred) {
           carryOver += total;
-          if (monthWindow.find((m) => m.key === key)) {
-            amountMap[key] = 0;
-          }
+          calculatedMap[key] = 0;
         } else {
-          const finalValue = total + carryOver;
-          if (monthWindow.find((m) => m.key === key)) {
-            amountMap[key] = finalValue;
-          }
+          calculatedMap[key] = total + carryOver;
           carryOver = 0;
         }
+      });
+
+      // ✅ 3. Llenar ventana visible sin volver a sumar
+      monthWindow.forEach((m) => {
+        amountMap[m.key] =
+          calculatedMap[m.key] ?? 0;
       });
 
       const groupName =
