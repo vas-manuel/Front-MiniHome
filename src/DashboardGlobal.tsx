@@ -190,35 +190,63 @@ export default function DashboardGlobal() {
     data?.fixedAccountsWithAmounts?.forEach((acc: any) => {
       const amountMap: Record<string, number> = {};
 
-      // ✅ Construimos línea de tiempo completa ordenada (no solo ventana)
-      const sortedAmounts = [...acc.amounts].sort(
-        (a: any, b: any) =>
-          a.year * 100 + a.month -
-          (b.year * 100 + b.month)
-      );
+      // ✅ 1. Agrupar montos por mes (por si existen múltiples registros)
+      const monthAggregation: Record<
+        string,
+        { total: number; deferred: boolean }
+      > = {};
 
-      let carryOver = 0;
-      const calculatedMap: Record<string, number> = {};
-
-      sortedAmounts.forEach((record: any) => {
+      acc.amounts.forEach((record: any) => {
         const key = `${record.year}-${record.month}`;
-        const baseAmount =
+
+        if (!monthAggregation[key]) {
+          monthAggregation[key] = {
+            total: 0,
+            deferred: false,
+          };
+        }
+
+        monthAggregation[key].total +=
           Number(record.amount) || 0;
 
         if (record.isDeferred) {
-          carryOver += baseAmount;
-          calculatedMap[key] = 0;
-        } else {
-          calculatedMap[key] =
-            baseAmount + carryOver;
-          carryOver = 0;
+          monthAggregation[key].deferred = true;
         }
       });
 
-      // ✅ Ahora llenamos solo la ventana visible
-      monthWindow.forEach((m) => {
-        amountMap[m.key] =
-          calculatedMap[m.key] || 0;
+      // ✅ 2. Construir línea de tiempo completa (histórico + ventana)
+      const allKeysSet = new Set<string>([
+        ...Object.keys(monthAggregation),
+        ...monthWindow.map((m) => m.key),
+      ]);
+
+      const sortedKeys = Array.from(allKeysSet).sort(
+        (a, b) => {
+          const [y1, m1] = a.split("-").map(Number);
+          const [y2, m2] = b.split("-").map(Number);
+          return y1 * 100 + m1 - (y2 * 100 + m2);
+        }
+      );
+
+      let carryOver = 0;
+
+      sortedKeys.forEach((key) => {
+        const monthData = monthAggregation[key];
+        const total = monthData?.total || 0;
+        const deferred = monthData?.deferred || false;
+
+        if (deferred) {
+          carryOver += total;
+          if (monthWindow.find((m) => m.key === key)) {
+            amountMap[key] = 0;
+          }
+        } else {
+          const finalValue = total + carryOver;
+          if (monthWindow.find((m) => m.key === key)) {
+            amountMap[key] = finalValue;
+          }
+          carryOver = 0;
+        }
       });
 
       const groupName =
