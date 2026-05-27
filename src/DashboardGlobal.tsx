@@ -190,29 +190,35 @@ export default function DashboardGlobal() {
     data?.fixedAccountsWithAmounts?.forEach((acc: any) => {
       const amountMap: Record<string, number> = {};
 
-      // ✅ Ordenar meses cronológicamente según ventana
+      // ✅ Construimos línea de tiempo completa ordenada (no solo ventana)
+      const sortedAmounts = [...acc.amounts].sort(
+        (a: any, b: any) =>
+          a.year * 100 + a.month -
+          (b.year * 100 + b.month)
+      );
+
       let carryOver = 0;
+      const calculatedMap: Record<string, number> = {};
 
-      monthWindow.forEach((m) => {
-        const record = acc.amounts.find(
-          (a: any) =>
-            a.year === m.year &&
-            a.month === m.month
-        );
+      sortedAmounts.forEach((record: any) => {
+        const key = `${record.year}-${record.month}`;
+        const baseAmount =
+          Number(record.amount) || 0;
 
-        const baseAmount = record
-          ? Number(record.amount) || 0
-          : 0;
-
-        // ✅ Si el mes está postergado, solo trasladamos SU monto
-        if (record?.isDeferred) {
+        if (record.isDeferred) {
           carryOver += baseAmount;
-          amountMap[m.key] = 0; // no se cobra este mes
+          calculatedMap[key] = 0;
         } else {
-          // ✅ Solo aquí sumamos lo postergado + el mes actual
-          amountMap[m.key] = baseAmount + carryOver;
+          calculatedMap[key] =
+            baseAmount + carryOver;
           carryOver = 0;
         }
+      });
+
+      // ✅ Ahora llenamos solo la ventana visible
+      monthWindow.forEach((m) => {
+        amountMap[m.key] =
+          calculatedMap[m.key] || 0;
       });
 
       const groupName =
