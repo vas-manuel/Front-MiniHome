@@ -200,19 +200,17 @@ export default function DashboardGlobal() {
             a.month === m.month
         );
 
-        let currentValue = record
+        const baseAmount = record
           ? Number(record.amount) || 0
           : 0;
 
-        // ✅ Si el mes anterior tuvo postergación, se acumula
-        currentValue += carryOver;
-
-        // ✅ Si este mes está postergado, se traslada al siguiente
+        // ✅ Si el mes está postergado, solo trasladamos SU monto
         if (record?.isDeferred) {
-          carryOver = currentValue;
+          carryOver += baseAmount;
           amountMap[m.key] = 0; // no se cobra este mes
         } else {
-          amountMap[m.key] = currentValue;
+          // ✅ Solo aquí sumamos lo postergado + el mes actual
+          amountMap[m.key] = baseAmount + carryOver;
           carryOver = 0;
         }
       });
