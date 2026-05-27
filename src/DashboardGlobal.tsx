@@ -214,34 +214,25 @@ export default function DashboardGlobal() {
         }
       });
 
-      // ✅ 2. Procesar SOLO meses reales en orden cronológico
-      const sortedKeys = Object.keys(monthAggregation).sort(
-        (a, b) => {
-          const [y1, m1] = a.split("-").map(Number);
-          const [y2, m2] = b.split("-").map(Number);
-          return y1 * 100 + m1 - (y2 * 100 + m2);
-        }
-      );
+      // ✅ 2. Aplicar regla correcta según comportamiento real del backend
+      // El backend ya replica el monto postergado en el mes siguiente,
+      // por lo tanto NO debemos volver a arrastrarlo manualmente.
 
-      let carryOver = 0;
-      const calculatedMap: Record<string, number> = {};
-
-      sortedKeys.forEach((key) => {
-        const { total, deferred } = monthAggregation[key];
-
-        if (deferred) {
-          carryOver += total;
-          calculatedMap[key] = 0;
-        } else {
-          calculatedMap[key] = total + carryOver;
-          carryOver = 0;
-        }
-      });
-
-      // ✅ 3. Llenar ventana visible sin volver a sumar
       monthWindow.forEach((m) => {
-        amountMap[m.key] =
-          calculatedMap[m.key] ?? 0;
+        const monthData = monthAggregation[m.key];
+
+        if (!monthData) {
+          amountMap[m.key] = 0;
+          return;
+        }
+
+        // Si el mes está postergado → se muestra 0
+        if (monthData.deferred) {
+          amountMap[m.key] = 0;
+        } else {
+          // El total ya incluye cualquier monto replicado por el backend
+          amountMap[m.key] = monthData.total;
+        }
       });
 
       const groupName =
