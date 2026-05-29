@@ -109,14 +109,10 @@ const UPDATE_STATUS = gql`
   mutation UpdateStatus(
     $id: ID!
     $status: BillAccountAmountStatus!
-    $amount: Float
-    $isDeferred: Boolean
   ) {
     updateBillAccountAmountStatus(
       id: $id
       status: $status
-      amount: $amount
-      isDeferred: $isDeferred
     ) {
       id
       status
@@ -124,6 +120,27 @@ const UPDATE_STATUS = gql`
       amount
       month
       year
+    }
+  }
+`;
+
+const DEFER_AMOUNT = gql`
+  mutation DeferAmount(
+    $id: ID!
+    $targetYear: Int!
+    $targetMonth: Int!
+  ) {
+    deferBillAccountAmount(
+      id: $id
+      targetYear: $targetYear
+      targetMonth: $targetMonth
+    ) {
+      id
+      year
+      month
+      amount
+      status
+      isDeferred
     }
   }
 `;
@@ -284,6 +301,7 @@ export default function BillAccountsManager() {
 
   const [createAmount] = useMutation(CREATE_AMOUNT);
   const [updateStatus] = useMutation(UPDATE_STATUS);
+  const [deferAmount] = useMutation(DEFER_AMOUNT);
   const [importAmounts] = useMutation(IMPORT_AMOUNTS);
   const [deleteFromPeriod] = useMutation(DELETE_FROM_PERIOD);
   const [deleteSingle] = useMutation(DELETE_SINGLE);
@@ -334,8 +352,6 @@ export default function BillAccountsManager() {
         variables: {
           id: editing.id,
           status: formStatus,
-          amount: numericAmount,
-          isDeferred: editing.isDeferred,
         },
       });
     } else {
@@ -399,24 +415,11 @@ export default function BillAccountsManager() {
     const nextMonth = a.month === 12 ? 1 : a.month + 1;
     const nextYear = a.month === 12 ? a.year + 1 : a.year;
 
-    // 1️⃣ Marcar actual como diferido
-    await updateStatus({
+    await deferAmount({
       variables: {
         id: a.id,
-        status: a.status,
-        isDeferred: true,
-      },
-    });
-
-    // 2️⃣ Crear nuevo monto en el mes siguiente
-    await createAmount({
-      variables: {
-        bill_account_id: selectedAccount.id,
-        year: nextYear,
-        month: nextMonth,
-        amount: a.amount,
-        installments: 1,
-        status: "NOT_CONFIRMED",
+        targetYear: nextYear,
+        targetMonth: nextMonth,
       },
     });
 
@@ -789,7 +792,6 @@ export default function BillAccountsManager() {
                           variables: {
                             id: a.id,
                             status: cycleStatus(a.status),
-                            isDeferred: false, // ✅ Quitar estado postergado al cambiar
                           },
                         }).then(refetch)
                       }
