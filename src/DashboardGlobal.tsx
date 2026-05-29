@@ -216,7 +216,17 @@ export default function DashboardGlobal() {
         // (existe mismo monto en un mes mayor),
         // el original no debe mostrarse.
         const total = monthRecords
-          .filter((r: any) => !r.isDeferred)
+          .filter((r: any) => {
+            const base = Number(r.base_amount || 0);
+            const carried = Number(r.carried_amount || 0);
+
+            // Ocultar solo meses originales que quedaron en 0
+            if (r.isDeferred && base === 0 && carried === 0) {
+              return false;
+            }
+
+            return true;
+          })
           .reduce(
             (sum: number, r: any) =>
               sum + (Number(r.amount) || 0),
