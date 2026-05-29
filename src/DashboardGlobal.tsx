@@ -190,49 +190,35 @@ export default function DashboardGlobal() {
     data?.fixedAccountsWithAmounts?.forEach((acc: any) => {
       const amountMap: Record<string, number> = {};
 
-      // ✅ 1. Agrupar montos por mes (por si existen múltiples registros)
-      const monthAggregation: Record<
-        string,
-        { total: number; deferred: boolean }
-      > = {};
-
-      acc.amounts.forEach((record: any) => {
-        const key = `${record.year}-${record.month}`;
-
-        if (!monthAggregation[key]) {
-          monthAggregation[key] = {
-            total: 0,
-            deferred: false,
-          };
-        }
-
-        monthAggregation[key].total +=
-          Number(record.amount) || 0;
-
-        if (record.isDeferred) {
-          monthAggregation[key].deferred = true;
-        }
-      });
-
-      // ✅ 2. Aplicar regla correcta según comportamiento real del backend
-      // El backend ya replica el monto postergado en el mes siguiente,
-      // por lo tanto NO debemos volver a arrastrarlo manualmente.
-
+      // ✅ NUEVA LÓGICA CORRECTA
+      // El backend ya crea nuevos registros cuando se posterga.
+      // Por lo tanto:
+      // - Solo mostramos en cada mes los registros que NO estén postergados.
+      // - Los postergados aparecerán como nuevos registros en el mes siguiente.
+      // - No hacemos arrastres manuales.
+      
       monthWindow.forEach((m) => {
-        const monthData = monthAggregation[m.key];
+        const monthRecords = acc.amounts.filter(
+          (a: any) =>
+            a.year === m.year &&
+            a.month === m.month
+        );
 
-        if (!monthData) {
+        if (!monthRecords.length) {
           amountMap[m.key] = 0;
           return;
         }
 
-        // Si el mes está postergado → se muestra 0
-        if (monthData.deferred) {
-          amountMap[m.key] = 0;
-        } else {
-          // El total ya incluye cualquier monto replicado por el backend
-          amountMap[m.key] = monthData.total;
-        }
+        // ✅ Solo sumar los que NO están postergados
+        const total = monthRecords
+          .filter((r: any) => !r.isDeferred)
+          .reduce(
+            (sum: number, r: any) =>
+              sum + (Number(r.amount) || 0),
+            0
+          );
+
+        amountMap[m.key] = total;
       });
 
       const groupName =
