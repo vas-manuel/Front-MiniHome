@@ -216,11 +216,13 @@ const statusColor = (status: string, isOverdue: boolean) => {
 };
 
 const translateStatus = (status: string, isDeferred?: boolean) => {
+  // ✅ Si está pagado, siempre mostrar Pagado
+  if (status === "PAID") return "Pagado";
+
+  // ✅ Solo mostrar Postergado si NO está pagado
   if (isDeferred) return "Postergado";
 
   switch (status) {
-    case "PAID":
-      return "Pagado";
     case "CONFIRMED":
       return "Confirmado";
     case "NOT_CONFIRMED":
