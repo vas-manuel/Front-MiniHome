@@ -209,14 +209,36 @@ export default function DashboardGlobal() {
           return;
         }
 
-        // ✅ Solo sumar los que NO están postergados
-        const total = monthRecords
-          .filter((r: any) => !r.isDeferred)
-          .reduce(
-            (sum: number, r: any) =>
-              sum + (Number(r.amount) || 0),
-            0
-          );
+        // ✅ Regla nueva:
+        // Si un registro fue trasladado a un mes posterior
+        // (existe mismo monto en un mes mayor),
+        // el original no debe mostrarse.
+        const validRecords = monthRecords.filter(
+          (r: any) => {
+            if (r.isDeferred) return false;
+
+            const currentKey = r.year * 100 + r.month;
+
+            const existsLaterSameAmount =
+              acc.amounts.some((a: any) => {
+                const laterKey =
+                  a.year * 100 + a.month;
+                return (
+                  laterKey > currentKey &&
+                  Number(a.amount) ===
+                    Number(r.amount)
+                );
+              });
+
+            return !existsLaterSameAmount;
+          }
+        );
+
+        const total = validRecords.reduce(
+          (sum: number, r: any) =>
+            sum + (Number(r.amount) || 0),
+          0
+        );
 
         amountMap[m.key] = total;
       });
@@ -1612,7 +1634,29 @@ export default function DashboardGlobal() {
 
                               // ✅ Separar postergados y reales
                               const nonDeferred = monthRecords.filter(
-                                (r: any) => !r.isDeferred
+                                (r: any) => {
+                                  if (r.isDeferred) return false;
+
+                                  const currentKey =
+                                    r.year * 100 + r.month;
+
+                                  const existsLaterSameAmount =
+                                    acc.amounts.some(
+                                      (a: any) => {
+                                        const laterKey =
+                                          a.year * 100 +
+                                          a.month;
+                                        return (
+                                          laterKey >
+                                            currentKey &&
+                                          Number(a.amount) ===
+                                            Number(r.amount)
+                                        );
+                                      }
+                                    );
+
+                                  return !existsLaterSameAmount;
+                                }
                               );
 
                               const hasDeferredOnly =
