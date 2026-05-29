@@ -766,22 +766,57 @@ export default function BillAccountsManager() {
                   )}
                 </Box>
 
-                <Chip
-                  size="small"
-                  label={
-                    isAmountOverdue(a)
-                      ? "Atrasado"
-                      : translateStatus(a.status, a.isDeferred)
-                  }
-                  color={
-                    a.isDeferred
-                      ? "secondary"
-                      : (statusColor(
-                          a.status,
-                          isAmountOverdue(a)
-                        ) as any)
-                  }
-                />
+                <Box>
+                  <Chip
+                    size="small"
+                    label={
+                      isAmountOverdue(a)
+                        ? "Atrasado"
+                        : translateStatus(a.status, a.isDeferred)
+                    }
+                    color={
+                      a.isDeferred
+                        ? "secondary"
+                        : (statusColor(
+                            a.status,
+                            isAmountOverdue(a)
+                          ) as any)
+                    }
+                  />
+
+                  {/* ✅ Indicador visual de arrastre */}
+                  {a.isDeferred && (
+                    <Typography
+                      variant="caption"
+                      display="block"
+                      color="secondary"
+                    >
+                      ➜ Arrastrado al siguiente mes
+                    </Typography>
+                  )}
+
+                  {!a.isDeferred &&
+                    amountsAllData?.billAccountAmounts?.some(
+                      (prev: any) =>
+                        prev.isDeferred &&
+                        prev.year ===
+                          (a.month === 1
+                            ? a.year - 1
+                            : a.year) &&
+                        prev.month ===
+                          (a.month === 1
+                            ? 12
+                            : a.month - 1)
+                    ) && (
+                      <Typography
+                        variant="caption"
+                        display="block"
+                        color="info.main"
+                      >
+                        Incluye arrastre anterior
+                      </Typography>
+                    )}
+                </Box>
 
                 <Box display="flex" justifyContent="center" gap={0.5}>
                   <Tooltip title="Cambiar Estado">
