@@ -42,6 +42,8 @@ const GET_DASHBOARD = gql`
         year
         month
         amount
+        base_amount
+        carried_amount
         status
         isDeferred
       }
@@ -265,19 +267,21 @@ export default function DashboardGlobal() {
         ) {
           const amount = Number(a.amount) || 0;
 
-          // ✅ GASTO REAL: suma todo excepto postergados
-          if (!a.isDeferred) {
-            gastoReal += amount;
-          }
+          const base = Number(a.base_amount || 0);
+          const carried = Number(a.carried_amount || 0);
+          const total = base + carried;
 
-          // ✅ PAGADO
+          // ✅ GASTO REAL del mes = SOLO base_amount
+          gastoReal += base;
+
+          // ✅ PAGADO (afecta total visible)
           if (a.status === "PAID") {
-            pagado += amount;
+            pagado += total;
           }
 
-          // ✅ PENDIENTE REAL (no pagado y no postergado)
-          if (a.status !== "PAID" && !a.isDeferred) {
-            pendiente += amount;
+          // ✅ PENDIENTE = total no pagado
+          if (a.status !== "PAID") {
+            pendiente += total;
           }
         }
       });
@@ -363,7 +367,11 @@ export default function DashboardGlobal() {
       data?.fixedAccountsWithAmounts?.forEach((acc: any) => {
         acc.amounts.forEach((a: any) => {
           if (a.year === y && a.month === m) {
-            projectedExpense += Number(a.amount) || 0;
+            // ✅ Proyección usa total real (base + arrastre)
+            const total =
+              Number(a.base_amount || 0) +
+              Number(a.carried_amount || 0);
+            projectedExpense += total;
           }
         });
       });
@@ -513,7 +521,10 @@ export default function DashboardGlobal() {
       data?.fixedAccountsWithAmounts?.forEach((acc: any) => {
         acc.amounts.forEach((a: any) => {
           if (a.year === y && a.month === m) {
-            expense += Number(a.amount) || 0;
+            const total =
+              Number(a.base_amount || 0) +
+              Number(a.carried_amount || 0);
+            expense += total;
           }
         });
       });

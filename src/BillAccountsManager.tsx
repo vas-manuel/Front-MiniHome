@@ -54,6 +54,8 @@ const GET_AMOUNTS = gql`
       year
       month
       amount
+      base_amount
+      carried_amount
       status
       isDeferred
       product_name
@@ -71,6 +73,8 @@ const GET_AMOUNTS_ALL = gql`
       year
       month
       amount
+      base_amount
+      carried_amount
       status
       isDeferred
     }
@@ -755,6 +759,33 @@ export default function BillAccountsManager() {
                   <Typography fontWeight="bold">
                     {currencyFormatter.format(a.amount)}
                   </Typography>
+
+                  {/* ✅ Nuevo desglose estructural */}
+                  {Number(a.carried_amount) > 0 && (
+                    <Typography
+                      variant="caption"
+                      display="block"
+                      color="info.main"
+                    >
+                      Arrastre anterior:{" "}
+                      {currencyFormatter.format(
+                        Number(a.carried_amount)
+                      )}
+                    </Typography>
+                  )}
+
+                  {Number(a.base_amount) > 0 && (
+                    <Typography
+                      variant="caption"
+                      display="block"
+                      color="text.secondary"
+                    >
+                      Consumo del mes:{" "}
+                      {currencyFormatter.format(
+                        Number(a.base_amount)
+                      )}
+                    </Typography>
+                  )}
 
                   {type === "VARIABLE" && a.purchase_date && (
                     <Typography
