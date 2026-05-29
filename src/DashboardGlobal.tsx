@@ -1634,41 +1634,43 @@ export default function DashboardGlobal() {
                                   currentMonth.month - 1
                                 );
 
-                              // ✅ Separar postergados y reales
-                              const nonDeferred = monthRecords.filter(
-                                (r: any) => !r.isDeferred
-                              );
-
-                              const hasDeferredOnly =
-                                monthRecords.length > 0 &&
-                                nonDeferred.length === 0;
-
                               const hasPaid =
-                                nonDeferred.some(
+                                monthRecords.some(
                                   (r: any) =>
                                     r.status === "PAID"
                                 );
 
                               const hasPending =
-                                nonDeferred.some(
+                                monthRecords.some(
                                   (r: any) =>
                                     r.status !== "PAID"
                                 );
 
-                              if (hasDeferredOnly) {
-                                // 🔵 Solo postergadas
+                              const hasOnlyZeroDeferred =
+                                monthRecords.every((r: any) => {
+                                  const base = Number(r.base_amount || 0);
+                                  const carried = Number(r.carried_amount || 0);
+                                  return (
+                                    r.isDeferred &&
+                                    base === 0 &&
+                                    carried === 0
+                                  );
+                                });
+
+                              if (hasOnlyZeroDeferred) {
+                                // Solo mes original postergado vacío
                                 bgColor = "#e3f2fd";
                               } else if (hasPaid) {
-                                // 🟢 Pagada real del mes
+                                // Pagado siempre verde aunque esté postergado
                                 bgColor = "#e8f5e9";
                               } else if (
                                 hasPending &&
                                 isPastMonth
                               ) {
-                                // 🔴 Atrasada
+                                // Atrasada
                                 bgColor = "#ffebee";
                               } else if (hasPending) {
-                                // 🟠 Pendiente actual
+                                // Pendiente actual
                                 bgColor = "#fff3e0";
                               }
                             }

@@ -718,7 +718,12 @@ export default function BillAccountsManager() {
           </Box>
 
           <Stack spacing={1}>
-            {amountsData?.billAccountAmounts.map((a: any) => (
+            {[...(amountsData?.billAccountAmounts || [])]
+              .sort((a: any, b: any) => {
+                if (a.year !== b.year) return a.year - b.year;
+                return a.month - b.month;
+              })
+              .map((a: any) => (
               <Box
                 key={a.id}
                 display="grid"
