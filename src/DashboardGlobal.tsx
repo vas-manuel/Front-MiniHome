@@ -1591,15 +1591,15 @@ export default function DashboardGlobal() {
                             const amount =
                               acc.amountMap[m.key] || 0;
 
-                            const record = acc.amounts?.find(
+                            const monthRecords = acc.amounts?.filter(
                               (a: any) =>
-                                `${a.year}-${a.month}` ===
-                                m.key
-                            );
+                                a.year === m.year &&
+                                a.month === m.month
+                            ) || [];
 
                             let bgColor = "inherit";
 
-                            if (record) {
+                            if (monthRecords.length > 0) {
                               const isPastMonth =
                                 new Date(
                                   m.year,
@@ -1610,23 +1610,40 @@ export default function DashboardGlobal() {
                                   currentMonth.month - 1
                                 );
 
-                              if (record.isDeferred) {
-                                // 🔵 Postergada
+                              // ✅ Separar postergados y reales
+                              const nonDeferred = monthRecords.filter(
+                                (r: any) => !r.isDeferred
+                              );
+
+                              const hasDeferredOnly =
+                                monthRecords.length > 0 &&
+                                nonDeferred.length === 0;
+
+                              const hasPaid =
+                                nonDeferred.some(
+                                  (r: any) =>
+                                    r.status === "PAID"
+                                );
+
+                              const hasPending =
+                                nonDeferred.some(
+                                  (r: any) =>
+                                    r.status !== "PAID"
+                                );
+
+                              if (hasDeferredOnly) {
+                                // 🔵 Solo postergadas
                                 bgColor = "#e3f2fd";
-                              } else if (
-                                record.status === "PAID"
-                              ) {
-                                // 🟢 Pagada
+                              } else if (hasPaid) {
+                                // 🟢 Pagada real del mes
                                 bgColor = "#e8f5e9";
                               } else if (
-                                record.status !== "PAID" &&
+                                hasPending &&
                                 isPastMonth
                               ) {
                                 // 🔴 Atrasada
                                 bgColor = "#ffebee";
-                              } else if (
-                                record.status !== "PAID"
-                              ) {
+                              } else if (hasPending) {
                                 // 🟠 Pendiente actual
                                 bgColor = "#fff3e0";
                               }
