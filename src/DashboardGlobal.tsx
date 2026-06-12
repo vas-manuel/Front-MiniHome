@@ -17,8 +17,10 @@ import {
 } from "@mui/material";
 import { useMemo, useState } from "react";
 import { formatCurrency } from "./utils/format";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowLeftIcon from "@mui/icons-material/KeyboardArrowLeft";
+import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 
 /* =========================
    QUERY COMPLETA RESTAURADA
@@ -73,8 +75,7 @@ const GET_INCOME_SUMMARY = gql`
    UTILIDAD VENTANA 5 MESES
 ========================= */
 
-function getFiveMonthWindow(locale: string) {
-  const today = new Date();
+function getFiveMonthWindow(baseDate: Date, locale: string) {
   const months: {
     year: number;
     month: number;
@@ -84,8 +85,8 @@ function getFiveMonthWindow(locale: string) {
 
   for (let i = -2; i <= 2; i++) {
     const d = new Date(
-      today.getFullYear(),
-      today.getMonth() + i,
+      baseDate.getFullYear(),
+      baseDate.getMonth() + i,
       1
     );
 
@@ -112,17 +113,49 @@ export default function DashboardGlobal() {
     fetchPolicy: "network-only",
   });
 
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth() + 1;
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  const year = selectedDate.getFullYear();
+  const month = selectedDate.getMonth() + 1;
 
   const { data: incomeData } = useQuery(GET_INCOME_SUMMARY, {
     variables: { year, month },
     fetchPolicy: "network-only",
   });
 
-  const monthWindow = getFiveMonthWindow(locale);
+  const monthWindow = getFiveMonthWindow(selectedDate, locale);
   const currentMonth = monthWindow[2];
+
+  const today = new Date();
+
+  const goPreviousMonth = () => {
+    setSelectedDate(
+      (prev) =>
+        new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
+    );
+  };
+
+  const goNextMonth = () => {
+    // ✅ Limitar a 12 meses hacia el futuro
+    const limitDate = new Date(
+      today.getFullYear(),
+      today.getMonth() + 12,
+      1
+    );
+
+    setSelectedDate((prev) => {
+      const next = new Date(
+        prev.getFullYear(),
+        prev.getMonth() + 1,
+        1
+      );
+      return next <= limitDate ? next : prev;
+    });
+  };
+
+  const goToday = () => {
+    setSelectedDate(new Date());
+  };
 
   const [openGroups, setOpenGroups] = useState<
     Record<string, boolean>
@@ -612,10 +645,64 @@ export default function DashboardGlobal() {
   }
 
   return (
-    <Box>
-      <Typography variant="h5" mb={3}>
-        Dashboard Financiero
-      </Typography>
+    <Box
+      key={`${year}-${month}`}
+      sx={{
+        animation: "fadeSlide 0.25s ease",
+        "@keyframes fadeSlide": {
+          from: { opacity: 0, transform: "translateY(6px)" },
+          to: { opacity: 1, transform: "translateY(0)" },
+        },
+      }}
+    >
+      <Box
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+        mb={3}
+      >
+        <Typography variant="h5">
+          Dashboard Financiero
+        </Typography>
+
+        <Box display="flex" alignItems="center" gap={1}>
+          <IconButton onClick={goPreviousMonth}>
+            <KeyboardArrowLeftIcon />
+          </IconButton>
+
+          <Typography
+            fontWeight={600}
+            sx={{
+              minWidth: 160,
+              textAlign: "center",
+              textTransform: "capitalize",
+              transition: "all 0.3s ease",
+            }}
+          >
+            {selectedDate.toLocaleDateString(locale, {
+              month: "long",
+              year: "numeric",
+            })}
+          </Typography>
+
+          <IconButton onClick={goNextMonth}>
+            <KeyboardArrowRightIcon />
+          </IconButton>
+
+          <Typography
+            variant="caption"
+            sx={{
+              cursor: "pointer",
+              ml: 2,
+              opacity: 0.7,
+              "&:hover": { opacity: 1 },
+            }}
+            onClick={goToday}
+          >
+            Volver a Hoy
+          </Typography>
+        </Box>
+      </Box>
 
       {/* KPIs COMPLETOS RESTAURADOS */}
       <Box
