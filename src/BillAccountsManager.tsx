@@ -128,6 +128,38 @@ const UPDATE_STATUS = gql`
   }
 `;
 
+const UPDATE_AMOUNT = gql`
+  mutation UpdateAmount(
+    $id: ID!
+    $year: Int
+    $month: Int
+    $amount: Float
+    $status: BillAccountAmountStatus
+    $quantity: Int
+    $unit_price: Float
+    $purchase_date: String
+  ) {
+    updateBillAccountAmount(
+      id: $id
+      year: $year
+      month: $month
+      amount: $amount
+      status: $status
+      quantity: $quantity
+      unit_price: $unit_price
+      purchase_date: $purchase_date
+    ) {
+      id
+      amount
+      base_amount
+      carried_amount
+      status
+      month
+      year
+    }
+  }
+`;
+
 const DEFER_AMOUNT = gql`
   mutation DeferAmount(
     $id: ID!
@@ -307,6 +339,7 @@ export default function BillAccountsManager() {
 
   const [createAmount] = useMutation(CREATE_AMOUNT);
   const [updateStatus] = useMutation(UPDATE_STATUS);
+  const [updateAmount] = useMutation(UPDATE_AMOUNT);
   const [deferAmount] = useMutation(DEFER_AMOUNT);
   const [importAmounts] = useMutation(IMPORT_AMOUNTS);
   const [deleteFromPeriod] = useMutation(DELETE_FROM_PERIOD);
@@ -354,12 +387,29 @@ export default function BillAccountsManager() {
     }
 
     if (editing) {
-      await updateStatus({
-        variables: {
-          id: editing.id,
-          status: formStatus,
-        },
-      });
+      if (type === "VARIABLE") {
+        await updateAmount({
+          variables: {
+            id: editing.id,
+            year,
+            month,
+            status: formStatus,
+            quantity,
+            unit_price: Number(unitPrice),
+            purchase_date: purchaseDate || null,
+          },
+        });
+      } else {
+        await updateAmount({
+          variables: {
+            id: editing.id,
+            year,
+            month,
+            amount: numericAmount,
+            status: formStatus,
+          },
+        });
+      }
     } else {
       if (type === "VARIABLE") {
         if (!quantity || !unitPrice) {
