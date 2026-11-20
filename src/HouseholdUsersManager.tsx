@@ -286,13 +286,6 @@ export default function HouseholdUsersManager() {
             p: 3,
             mb: 3,
             borderRadius: 3,
-            background: "linear-gradient(145deg, #f8fafc, #ffffff)",
-            border: "1px solid #e0e0e0",
-            transition: "all 0.3s ease",
-            "&:hover": {
-              transform: "translateY(-4px)",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-            },
           }}
         >
           <Box display="flex" justifyContent="flex-end">
@@ -316,11 +309,6 @@ export default function HouseholdUsersManager() {
           sx={{
             borderRadius: 3,
             overflow: "hidden",
-            border: "1px solid #e0e0e0",
-            transition: "all 0.3s ease",
-            "&:hover": {
-              boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-            },
           }}
         >
           {loading ? (
@@ -347,7 +335,7 @@ export default function HouseholdUsersManager() {
               sx={{
                 border: "none",
                 "& .MuiDataGrid-columnHeaders": {
-                  backgroundColor: "#f1f5f9",
+                  backgroundColor: "background.default",
                   fontWeight: "bold",
                 },
                 "& .MuiDataGrid-cell": {

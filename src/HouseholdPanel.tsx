@@ -14,6 +14,7 @@ import {
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import { useLanguage } from "./i18n";
+import { formatAmountInput, parseAmountInput } from "./features/bills/billsLogic";
 
 const GET_ME_AND_PLANS = gql`
   query {
@@ -23,6 +24,8 @@ const GET_ME_AND_PLANS = gql`
         name
         currency
         language
+        monthlyBudget
+        savingsGoal
         plan {
           id
           name
@@ -42,12 +45,16 @@ const UPDATE_MY_HOUSEHOLD = gql`
     $planId: ID
     $currency: String
     $language: Language
+    $monthlyBudget: Float
+    $savingsGoal: Float
   ) {
     updateMyHousehold(
       name: $name
       planId: $planId
       currency: $currency
       language: $language
+      monthlyBudget: $monthlyBudget
+      savingsGoal: $savingsGoal
     ) {
       id
       name
@@ -63,14 +70,17 @@ const UPDATE_MY_HOUSEHOLD = gql`
 
 export default function HouseholdPanel() {
   const { data, loading, refetch } = useQuery(GET_ME_AND_PLANS);
-  const { t, setLanguage: setGlobalLanguage } = useLanguage();
+  const { t, setLanguage: setGlobalLanguage, setHouseholdPreferences } = useLanguage();
   const [updateMyHousehold] = useMutation(UPDATE_MY_HOUSEHOLD);
 
   const [householdName, setHouseholdName] = useState("");
   const [currency, setCurrency] = useState("CLP");
   const [language, setLocalLanguage] = useState("es");
   const [planId, setPlanId] = useState("");
+  const [monthlyBudget, setMonthlyBudget] = useState("");
+  const [savingsGoal, setSavingsGoal] = useState("");
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (data?.me?.household) {
@@ -79,6 +89,8 @@ export default function HouseholdPanel() {
       setCurrency(h.currency || "CLP");
       setLocalLanguage(h.language || "es");
       setPlanId(h.plan?.id || "");
+      setMonthlyBudget(h.monthlyBudget ? formatAmountInput(String(Math.round(h.monthlyBudget))) ?? "" : "");
+      setSavingsGoal(h.savingsGoal ? formatAmountInput(String(Math.round(h.savingsGoal))) ?? "" : "");
     }
   }, [data]);
 
@@ -90,21 +102,21 @@ export default function HouseholdPanel() {
           currency,
           language,
           planId: planId || null,
+          monthlyBudget: monthlyBudget ? parseAmountInput(monthlyBudget) : null,
+          savingsGoal: savingsGoal ? parseAmountInput(savingsGoal) : null,
         },
       });
 
       // ✅ Actualizar idioma global inmediatamente
       setGlobalLanguage(language as any);
 
-      // ✅ Persistir en localStorage
-      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-      storedUser.language = language;
-      localStorage.setItem("user", JSON.stringify(storedUser));
-
+      setHouseholdPreferences({ language, currency });
+      setError(null);
       setSuccess(true);
       refetch();
     } catch (err: any) {
-      alert(err.message);
+      setSuccess(false);
+      setError(t("genericError"));
     }
   };
 
@@ -112,7 +124,7 @@ export default function HouseholdPanel() {
 
   return (
     <Box>
-      <Typography variant="h5" fontWeight="bold" gutterBottom>
+      <Typography variant="h5" component="h1" gutterBottom>
         {t("settings")}
       </Typography>
 
@@ -120,6 +132,12 @@ export default function HouseholdPanel() {
         {t("updateHouseholdDescription") ||
           "Personaliza los datos principales de tu hogar y plan activo."}
       </Typography>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
 
       {success && (
         <Alert severity="success" sx={{ mb: 3 }}>
@@ -133,8 +151,6 @@ export default function HouseholdPanel() {
         sx={{
           p: 4,
           borderRadius: 3,
-          background: "linear-gradient(145deg, #f8fafc, #ffffff)",
-          border: "1px solid #e0e0e0",
         }}
       >
         <Stack spacing={3}>
@@ -201,6 +217,31 @@ export default function HouseholdPanel() {
               <MenuItem value="en">English</MenuItem>
               <MenuItem value="pt">Português</MenuItem>
             </TextField>
+          </Stack>
+
+          <Stack direction={{ xs: "column", md: "row" }} spacing={3}>
+            <TextField
+              label={t("savingsGoal")}
+              value={savingsGoal}
+              onChange={(e) => {
+                const v = formatAmountInput(e.target.value);
+                if (v !== null) setSavingsGoal(v);
+              }}
+              helperText={t("savingsGoalHelp")}
+              inputProps={{ inputMode: "numeric", style: { fontVariantNumeric: "tabular-nums" } }}
+              fullWidth
+            />
+            <TextField
+              label={t("monthlyBudget")}
+              value={monthlyBudget}
+              onChange={(e) => {
+                const v = formatAmountInput(e.target.value);
+                if (v !== null) setMonthlyBudget(v);
+              }}
+              helperText={t("monthlyBudgetHelp")}
+              inputProps={{ inputMode: "numeric", style: { fontVariantNumeric: "tabular-nums" } }}
+              fullWidth
+            />
           </Stack>
         </Stack>
 
