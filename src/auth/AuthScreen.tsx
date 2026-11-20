@@ -111,8 +111,8 @@ export default function AuthScreen() {
         finishLogin();
       }
     } catch (err: any) {
-      const text =
-        err?.message === "captcha" ? t("captchaUnavailable") : isRegister ? t("genericError") : t("loginError");
+      const isCaptcha = err?.message === "captcha" || /recaptcha/i.test(err?.message ?? "");
+      const text = isCaptcha ? t("captchaUnavailable") : isRegister ? t("genericError") : t("loginError");
       setMessage({ kind: "error", text });
     } finally {
       setBusy(false);
@@ -141,7 +141,8 @@ export default function AuthScreen() {
         finishLogin();
       }
     } catch (err: any) {
-      setMessage({ kind: "error", text: err?.message === "captcha" ? t("captchaUnavailable") : t("genericError") });
+      const isCaptcha = err?.message === "captcha" || /recaptcha/i.test(err?.message ?? "");
+      setMessage({ kind: "error", text: isCaptcha ? t("captchaUnavailable") : t("genericError") });
     } finally {
       setBusy(false);
     }
