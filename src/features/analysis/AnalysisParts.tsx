@@ -30,7 +30,7 @@ import { AccountWithAmounts, cellState, CellState, MonthSlot } from "./analysisL
 export function KpiGrid({ items }: { items: { label: string; value: number }[] }) {
   const { money } = useLanguage();
   return (
-    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(3, 1fr)" }, gap: 2, mb: 3 }}>
+    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: items.length > 6 ? "repeat(4, 1fr)" : "repeat(3, 1fr)" }, gap: 2, mb: 3 }}>
       {items.map((k) => (
         <Card key={k.label}>
           <CardContent>

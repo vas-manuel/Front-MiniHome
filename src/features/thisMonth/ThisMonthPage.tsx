@@ -26,6 +26,7 @@ import { formatMonthName, formatShortDate } from "../../utils/format";
 import { BillState, groupByState, MonthBill, summarizeMonth } from "./monthBills";
 import { useMonthBills } from "./useMonthBills";
 import { ReceiptUploadButton } from "../receipts/ReceiptUploadButton";
+import { ConsumptionCard } from "./ConsumptionCard";
 
 const SECTION_LABEL: Record<BillState, string> = {
   overdue: "overdueSection",
@@ -99,7 +100,7 @@ export default function ThisMonthPage() {
           <Skeleton variant="rounded" height={72} />
         </Stack>
       ) : !hasAccounts ? (
-        <Paper>
+        <Paper sx={{ mb: 3 }}>
           <EmptyState
             title={t("emptyAccounts")}
             action={
@@ -111,9 +112,14 @@ export default function ThisMonthPage() {
             }
           />
         </Paper>
-      ) : (
+      ) : null}
+
+      {!loading && !hasAccounts && <ConsumptionCard year={period.year} month={period.month} fixedTotal={0} />}
+
+      {loading || !hasAccounts ? null : (
         <>
           <SummaryCard summary={summary} monthName={monthName} />
+          <ConsumptionCard year={period.year} month={period.month} fixedTotal={summary.total} />
 
           {summary.billCount === 0 && (
             <Paper sx={{ mb: 3 }}>

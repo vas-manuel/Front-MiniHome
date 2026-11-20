@@ -5,22 +5,30 @@
 import { useCallback, useState } from "react";
 import { useApolloClient, useMutation } from "@apollo/client";
 import { precheckFile, UploadError, uploadReceipt } from "../receipts/api";
-import { ANALYZE_PURCHASE, CREATE_PURCHASE, DISCARD_UPLOAD, PurchaseAnalysis } from "./queries";
-import { PurchaseFormState, toInput } from "./purchaseForm";
+import { ANALYZE_PURCHASE, CREATE_PURCHASE, DISCARD_UPLOAD, Purchase, PurchaseAnalysis, UPDATE_PURCHASE } from "./queries";
+import { formFromPurchase, PurchaseFormState, toInput } from "./purchaseForm";
 
 export type PurchaseFlow =
   | { kind: "idle" }
   | { kind: "busy" }
-  | { kind: "review"; analysis: PurchaseAnalysis | null; saving: boolean; error: boolean }
+  | {
+      kind: "review";
+      analysis: PurchaseAnalysis | null;
+      /** Compra guardada que se está corrigiendo */
+      editing?: { id: string; form: PurchaseFormState; previewUrl: string | null };
+      saving: boolean;
+      error: boolean;
+    }
   | { kind: "unreadable"; reason: string }
   | { kind: "error"; code: string };
 
-const REFRESH = ["Consumption"];
+const REFRESH = ["Consumption", "HomeConsumption", "ShoppingSuggestions", "ConsumptionByMonth"];
 
 export function usePurchaseUpload(onSaved: () => void) {
   const client = useApolloClient();
   const [flow, setFlow] = useState<PurchaseFlow>({ kind: "idle" });
   const [createMutation] = useMutation(CREATE_PURCHASE, { refetchQueries: REFRESH, awaitRefetchQueries: true });
+  const [updateMutation] = useMutation(UPDATE_PURCHASE, { refetchQueries: REFRESH, awaitRefetchQueries: true });
   const [discardMutation] = useMutation(DISCARD_UPLOAD);
 
   const start = useCallback(
@@ -51,22 +59,39 @@ export function usePurchaseUpload(onSaved: () => void) {
   /** Gasto rápido: la misma pantalla, sin boleta */
   const startManual = useCallback(() => setFlow({ kind: "review", analysis: null, saving: false, error: false }), []);
 
+  /** Corregir una compra ya guardada, en la misma pantalla */
+  const startEdit = useCallback(
+    (p: Purchase) =>
+      setFlow({
+        kind: "review",
+        analysis: null,
+        editing: { id: p.id, form: formFromPurchase(p), previewUrl: p.receiptUrl },
+        saving: false,
+        error: false,
+      }),
+    []
+  );
+
   const confirm = useCallback(
     async (form: PurchaseFormState) => {
       if (flow.kind !== "review") return;
-      const { analysis } = flow;
+      const { analysis, editing } = flow;
       setFlow({ ...flow, saving: true, error: false });
       try {
-        await createMutation({
-          variables: { input: toInput(form, analysis ? { uploadId: analysis.uploadId, engine: analysis.engine } : undefined) },
-        });
+        if (editing) {
+          await updateMutation({ variables: { id: editing.id, input: toInput(form) } });
+        } else {
+          await createMutation({
+            variables: { input: toInput(form, analysis ? { uploadId: analysis.uploadId, engine: analysis.engine } : undefined) },
+          });
+        }
         setFlow({ kind: "idle" });
         onSaved();
       } catch {
-        setFlow({ kind: "review", analysis, saving: false, error: true });
+        setFlow({ kind: "review", analysis, editing, saving: false, error: true });
       }
     },
-    [flow, createMutation, onSaved]
+    [flow, createMutation, updateMutation, onSaved]
   );
 
   const cancel = useCallback(() => {
@@ -76,5 +101,5 @@ export function usePurchaseUpload(onSaved: () => void) {
     setFlow({ kind: "idle" });
   }, [flow, discardMutation]);
 
-  return { flow, start, startManual, confirm, cancel, reset: () => setFlow({ kind: "idle" }) };
+  return { flow, start, startManual, startEdit, confirm, cancel, reset: () => setFlow({ kind: "idle" }) };
 }

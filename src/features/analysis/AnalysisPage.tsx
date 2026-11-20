@@ -22,6 +22,8 @@ import {
   withdrawalsInMonth,
 } from "./analysisLogic";
 import { ChartCard, DetailPanel, KpiGrid, MonthTable, ProgressCard } from "./AnalysisParts";
+import { balanceWithConsumption, consumptionFor, MonthTotal, projectionWithConsumption } from "./consumptionAnalysis";
+import { CONSUMPTION_BY_MONTH } from "../consumption/queries";
 
 const GET_DASHBOARD = gql`
   query AnalysisDashboard {
@@ -82,6 +84,13 @@ export default function AnalysisPage() {
 
   const { data, loading } = useQuery(GET_DASHBOARD, { fetchPolicy: "network-only" });
   const { data: incomeData } = useQuery(GET_INCOME_SUMMARY, { variables: { year, month }, fetchPolicy: "network-only" });
+  // Consumo (gastos variables): 36 meses que terminan al final de la proyección
+  const projectionEnd = new Date(year, month - 1 + 12, 1);
+  const { data: consumptionData } = useQuery<{ consumptionByMonth: MonthTotal[] }>(CONSUMPTION_BY_MONTH, {
+    variables: { year: projectionEnd.getFullYear(), month: projectionEnd.getMonth() + 1, months: 36 },
+    fetchPolicy: "network-only",
+  });
+  const consumptionRows = useMemo(() => consumptionData?.consumptionByMonth ?? [], [consumptionData]);
 
   const d: AnalysisData = useMemo(
     () => ({
@@ -102,14 +111,16 @@ export default function AnalysisPage() {
   );
   const table = useMemo(() => groupedTable(d.accounts, window), [d, window]);
   const ind = useMemo(() => monthIndicators(d.accounts, year, month), [d, year, month]);
-  const proj = useMemo(() => projection(d, year, month), [d, year, month]);
+  const proj = useMemo(() => projectionWithConsumption(projection(d, year, month), consumptionRows, today), [d, year, month, consumptionRows]);
   const groupProj = useMemo(() => groupProjection(d.accounts, year, month), [d, year, month]);
-  const balance = useMemo(() => balanceTrend(d, year, month), [d, year, month]);
+  const balance = useMemo(() => balanceWithConsumption(balanceTrend(d, year, month), consumptionRows, today), [d, year, month, consumptionRows]);
+  const consumption = consumptionFor(consumptionRows, year, month, today);
+  const totalExpense = ind.realExpense + consumption;
 
   const income = Number(incomeData?.householdIncomeSummary || 0) + withdrawalsInMonth(d.savingsMovements, year, month);
   const savings = savingsToDate(d.savingsMovements, year, month);
   const savingsGoal = Number(data?.me?.household?.savingsGoal || 0);
-  const risk = riskPercentage(ind.realExpense, income);
+  const risk = riskPercentage(totalExpense, income);
   const chartLabels = proj.map((p) => monthLabel(p.year, p.month, { month: "short", year: "2-digit" }));
 
   // Color sigue al grupo (orden alfabético estable); más de 6 grupos se agrupan en "Otros"
@@ -124,6 +135,15 @@ export default function AnalysisPage() {
       color: palette[i],
       values: groupProj.map((p) => p.groups[g] || 0),
     }));
+    if (consumptionRows.length) {
+      list.push({
+        key: "__consumo",
+        label: t("legendConsumption"),
+        color: colors.expense,
+        dashed: true,
+        values: proj.map((p) => p.consumption),
+      });
+    }
     if (rest.length) {
       list.push({
         key: "__otros",
@@ -133,7 +153,7 @@ export default function AnalysisPage() {
       });
     }
     return list;
-  }, [groupProj, mode, t]);
+  }, [groupProj, mode, t, proj, consumptionRows, colors.expense]);
 
   const select = (chart: string) => (index: number) => setSelected({ chart, index });
   const sel = (chart: string) => (selected?.chart === chart ? selected.index : null);
@@ -163,10 +183,12 @@ export default function AnalysisPage() {
       <KpiGrid
         items={[
           { label: t("kpiIncome"), value: income },
-          { label: t("kpiRealExpense"), value: ind.realExpense },
+          { label: t("kpiFixedBills"), value: ind.realExpense },
+          { label: t("kpiConsumption"), value: consumption },
+          { label: t("kpiRealExpense"), value: totalExpense },
           { label: t("kpiPaid"), value: ind.paid },
           { label: t("kpiPending"), value: ind.pending },
-          { label: t("kpiNet"), value: income - ind.realExpense },
+          { label: t("kpiNet"), value: income - totalExpense },
           { label: t("kpiSavings"), value: savings },
         ]}
       />
@@ -202,6 +224,7 @@ export default function AnalysisPage() {
               rows={[
                 { label: t("income"), value: money(proj[pIdx].income) },
                 { label: t("expenses"), value: money(proj[pIdx].expense) },
+                { label: t("legendConsumption"), value: money(proj[pIdx].consumption) },
                 { label: t("legendSavings"), value: money(proj[pIdx].savings) },
               ]}
             />
@@ -248,6 +271,7 @@ export default function AnalysisPage() {
               rows={[
                 { label: t("income"), value: money(balance[bIdx].income) },
                 { label: t("expenses"), value: money(balance[bIdx].expense - balance[bIdx].savingsDeposit) },
+                { label: t("legendConsumption"), value: money(balance[bIdx].consumption) },
                 { label: t("savingsOfMonth"), value: money(balance[bIdx].savingsDeposit) },
                 { label: t("totalOutflows"), value: money(balance[bIdx].expense) },
                 { label: t("balance"), value: money(balance[bIdx].balance), strong: true },

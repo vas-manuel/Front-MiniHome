@@ -40,6 +40,9 @@ interface Props {
   categories: ExpenseCategory[];
   /** Con análisis: confirmar una boleta. Sin análisis: gasto rápido manual. */
   analysis: PurchaseAnalysis | null;
+  /** Al corregir una compra guardada: sus datos y la boleta (si tiene) */
+  initial?: PurchaseFormState | null;
+  previewUrl?: string | null;
   saving: boolean;
   error: boolean;
   onConfirm: (form: PurchaseFormState) => void;
@@ -48,15 +51,17 @@ interface Props {
 
 const PAYMENTS = ["EFECTIVO", "DEBITO", "CREDITO", "APP", "OTRO"];
 
-export function PurchaseDialog({ categories, analysis, saving, error, onConfirm, onCancel }: Props) {
+export function PurchaseDialog({ categories, analysis, initial, previewUrl, saving, error, onConfirm, onCancel }: Props) {
   const { t, money } = useLanguage();
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down("md"));
   const defaultCategory = categories.find((c) => c.code === "ALIMENTOS")?.id ?? categories[0]?.id ?? "";
 
   const [form, setForm] = useState<PurchaseFormState>(() =>
-    analysis ? formFromAnalysis(analysis) : emptyForm(defaultCategory)
+    initial ?? (analysis ? formFromAnalysis(analysis) : emptyForm(defaultCategory))
   );
+  const editing = Boolean(initial);
+  const preview = analysis?.previewUrl ?? previewUrl ?? null;
   const [touched, setTouched] = useState(false);
   const v = validate(form);
   const total = itemsTotal(form.items);
@@ -87,7 +92,7 @@ export function PurchaseDialog({ categories, analysis, saving, error, onConfirm,
     <Dialog open onClose={saving ? undefined : onCancel} fullScreen={fullScreen} maxWidth="lg" fullWidth aria-labelledby="purchase-title">
       <DialogTitle id="purchase-title">
         <Stack direction="row" spacing={1} alignItems="center">
-          <span>{analysis ? t("purchaseReviewTitle") : t("purchaseQuickTitle")}</span>
+          <span>{editing ? t("purchaseEditTitle") : analysis ? t("purchaseReviewTitle") : t("purchaseQuickTitle")}</span>
           {analysis && (
             <Chip
               size="small"
@@ -98,15 +103,15 @@ export function PurchaseDialog({ categories, analysis, saving, error, onConfirm,
           )}
         </Stack>
         <Typography variant="body2" color="text.secondary">
-          {analysis ? t("purchaseReviewSubtitle") : t("purchaseQuickSubtitle")}
+          {editing ? t("purchaseEditSubtitle") : analysis ? t("purchaseReviewSubtitle") : t("purchaseQuickSubtitle")}
         </Typography>
       </DialogTitle>
 
       <DialogContent dividers>
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: analysis ? "minmax(260px, 1fr) 2fr" : "1fr" }, gap: 3 }}>
-          {analysis && (
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: preview ? "minmax(260px, 1fr) 2fr" : "1fr" }, gap: 3 }}>
+          {preview && (
             <Box sx={{ position: { md: "sticky" }, top: 0, alignSelf: "start" }}>
-              <ReceiptPreview url={analysis.previewUrl} height={fullScreen ? 260 : 600} />
+              <ReceiptPreview url={preview} height={fullScreen ? 260 : 600} />
             </Box>
           )}
 

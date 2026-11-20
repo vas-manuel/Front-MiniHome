@@ -38,6 +38,8 @@ import AddRounded from "@mui/icons-material/AddRounded";
 import ExpandMoreRounded from "@mui/icons-material/ExpandMoreRounded";
 import DeleteOutlineRounded from "@mui/icons-material/DeleteOutlineRounded";
 import AutoAwesomeRounded from "@mui/icons-material/AutoAwesomeRounded";
+import EditRounded from "@mui/icons-material/EditRounded";
+import CategoryRounded from "@mui/icons-material/CategoryRounded";
 import { useLanguage } from "../../i18n";
 import { useSession } from "../../app/session";
 import { amountSx } from "../../brand/theme";
@@ -47,7 +49,10 @@ import { ACCEPT_ATTR } from "../receipts/api";
 import { ReceiptViewButton } from "../receipts/ReceiptViewButton";
 import { PurchaseDialog } from "./PurchaseDialog";
 import { usePurchaseUpload } from "./usePurchaseUpload";
-import { formatNumber } from "./purchaseForm";
+import { budgetLevel, formatNumber } from "./purchaseForm";
+import { CategoriesDialog } from "./CategoriesDialog";
+import { ProductHistoryDialog } from "./ProductHistoryDialog";
+import { ShoppingListPanel } from "./ShoppingListPanel";
 import { ConsumptionSummary, DELETE_PURCHASE, ExpenseCategory, GET_CATEGORIES, GET_CONSUMPTION, Purchase } from "./queries";
 
 const UNREADABLE_KEYS: Record<string, string> = {
@@ -71,7 +76,9 @@ export default function ConsumptionPage() {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
-  const [tab, setTab] = useState<"purchases" | "products">("purchases");
+  const [tab, setTab] = useState<"purchases" | "products" | "list">("purchases");
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [historyOf, setHistoryOf] = useState<{ productName: string; unit: string } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<Purchase | null>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -84,7 +91,7 @@ export default function ConsumptionPage() {
     fetchPolicy: "cache-and-network",
   });
   const [deletePurchase] = useMutation(DELETE_PURCHASE);
-  const { flow, start, startManual, confirm, cancel, reset } = usePurchaseUpload(() => setToast(t("purchaseSaved")));
+  const { flow, start, startManual, startEdit, confirm, cancel, reset } = usePurchaseUpload(() => setToast(t("purchaseSaved")));
 
   const categories = catData?.expenseCategories ?? [];
   const reader = catData?.purchaseReaderInfo;
@@ -105,6 +112,9 @@ export default function ConsumptionPage() {
         actions={
           canEdit && (
             <>
+              <Button startIcon={<CategoryRounded />} onClick={() => setCategoriesOpen(true)} disabled={!categories.length}>
+                {t("categoriesButton")}
+              </Button>
               <Button variant="outlined" startIcon={<AddRounded />} onClick={startManual} disabled={!categories.length}>
                 {t("purchaseQuick")}
               </Button>
@@ -154,16 +164,36 @@ export default function ConsumptionPage() {
           ) : (
             <Stack spacing={1.5}>
               {summary.categories.map((c) => {
-                const pct = summary.total > 0 ? (c.total / summary.total) * 100 : 0;
+                const budget = c.category.monthlyBudget;
+                const level = budgetLevel(c.total, budget);
+                // Con presupuesto la barra mide el uso del presupuesto; sin él, la parte del total del mes
+                const pct = budget ? Math.min((c.total / budget) * 100, 100) : summary.total > 0 ? (c.total / summary.total) * 100 : 0;
+                const color = level === "over" ? "error" : level === "warning" ? "warning" : "primary";
                 return (
                   <Box key={c.category.id}>
                     <Stack direction="row" justifyContent="space-between">
                       <Typography fontWeight={500}>{c.category.name}</Typography>
                       <Typography sx={amountSx}>
-                        {money(c.total)} <Typography component="span" color="text.secondary" variant="body2">· {Math.round(pct)}%</Typography>
+                        {money(c.total)}{" "}
+                        <Typography component="span" color={level === "over" ? "error.main" : "text.secondary"} variant="body2">
+                          {budget
+                            ? `${t("budgetOf", { budget: money(budget) })}`
+                            : `· ${Math.round(summary.total > 0 ? (c.total / summary.total) * 100 : 0)}%`}
+                        </Typography>
                       </Typography>
                     </Stack>
-                    <LinearProgress variant="determinate" value={pct} sx={{ height: 8, borderRadius: 4, mt: 0.5 }} aria-label={c.category.name} />
+                    <LinearProgress
+                      variant="determinate"
+                      value={pct}
+                      color={color}
+                      sx={{ height: 8, borderRadius: 4, mt: 0.5 }}
+                      aria-label={c.category.name}
+                    />
+                    {level === "over" && (
+                      <Typography variant="caption" color="error.main">
+                        {t("budgetOver", { value: money(c.total - (budget ?? 0)) })}
+                      </Typography>
+                    )}
                   </Box>
                 );
               })}
@@ -175,6 +205,7 @@ export default function ConsumptionPage() {
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
         <Tab value="purchases" label={t("consumptionPurchasesTab", { count: purchases.length })} />
         <Tab value="products" label={t("consumptionProductsTab")} />
+        <Tab value="list" label={t("shoppingListTab")} />
       </Tabs>
 
       {tab === "purchases" &&
@@ -238,6 +269,13 @@ export default function ConsumptionPage() {
                     </TableBody>
                   </Table>
                   <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 1 }}>
+                    {canEdit && (
+                      <Tooltip title={t("purchaseEdit")}>
+                        <IconButton aria-label={t("purchaseEdit")} onClick={() => startEdit(p)}>
+                          <EditRounded />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                     {p.receiptUrl && <ReceiptViewButton receipt={{ url: p.receiptUrl }} title={p.merchant_name || t("purchaseNoMerchant")} />}
                     {canEdit && (
                       <Tooltip title={t("delete")}>
@@ -274,7 +312,14 @@ export default function ConsumptionPage() {
               </TableHead>
               <TableBody>
                 {summary.products.map((p) => (
-                  <TableRow key={`${p.productName}|${p.unit}`}>
+                  <TableRow
+                    key={`${p.productName}|${p.unit}`}
+                    hover
+                    sx={{ cursor: "pointer" }}
+                    onClick={() => setHistoryOf({ productName: p.productName, unit: p.unit })}
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === "Enter" && setHistoryOf({ productName: p.productName, unit: p.unit })}
+                  >
                     <TableCell>{p.productName}</TableCell>
                     <TableCell>{p.category.name}</TableCell>
                     <TableCell align="right">
@@ -295,6 +340,17 @@ export default function ConsumptionPage() {
           </Paper>
         ))}
 
+      {tab === "list" && <ShoppingListPanel onOpenProduct={setHistoryOf} onCopied={() => setToast(t("shoppingListCopied"))} />}
+
+      {tab === "products" && Boolean(summary?.products.length) && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+          {t("consumptionProductsHint")}
+        </Typography>
+      )}
+
+      <CategoriesDialog open={categoriesOpen} categories={categories} onClose={() => setCategoriesOpen(false)} />
+      <ProductHistoryDialog product={historyOf} year={year} month={month} onClose={() => setHistoryOf(null)} />
+
       <Backdrop open={flow.kind === "busy"} sx={{ zIndex: (th) => th.zIndex.modal + 1, color: "#fff" }}>
         <Stack alignItems="center" spacing={2} role="status" aria-live="polite">
           <CircularProgress color="inherit" />
@@ -304,9 +360,11 @@ export default function ConsumptionPage() {
 
       {flow.kind === "review" && (
         <PurchaseDialog
-          key={flow.analysis?.uploadId ?? "manual"}
+          key={flow.analysis?.uploadId ?? flow.editing?.id ?? "manual"}
           categories={categories}
           analysis={flow.analysis}
+          initial={flow.editing?.form}
+          previewUrl={flow.editing?.previewUrl}
           saving={flow.saving}
           error={flow.error}
           onConfirm={confirm}

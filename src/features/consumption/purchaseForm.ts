@@ -1,5 +1,5 @@
 /* Estado y reglas de la pantalla de confirmación de una compra (sin React, para probarlo) */
-import type { PurchaseAnalysis } from "./queries";
+import type { Purchase, PurchaseAnalysis } from "./queries";
 
 export const UNITS = ["un", "kg", "g", "L", "ml"] as const;
 
@@ -76,6 +76,36 @@ export function formFromAnalysis(a: PurchaseAnalysis): PurchaseFormState {
       learned: i.learned,
     })),
   };
+}
+
+/** Para corregir una compra ya guardada */
+export function formFromPurchase(p: Purchase): PurchaseFormState {
+  return {
+    merchantName: p.merchant_name ?? "",
+    purchaseDate: p.purchase_date,
+    paymentMethod: p.payment_method ?? "",
+    items: p.items.map((i) => ({
+      key: nextKey(),
+      description: i.description ?? "",
+      productName: i.product_name,
+      quantity: formatNumber(i.quantity),
+      unit: i.unit,
+      lineTotal: formatNumber(i.line_total),
+      discount: i.discount,
+      unitPrice: i.unit_price,
+      categoryId: i.category.id,
+      learned: false,
+    })),
+  };
+}
+
+/** Uso del presupuesto: nivel para el color de la barra */
+export function budgetLevel(spent: number, budget: number | null | undefined): "none" | "ok" | "warning" | "over" {
+  if (!budget || budget <= 0) return "none";
+  const ratio = spent / budget;
+  if (ratio > 1) return "over";
+  if (ratio >= 0.8) return "warning";
+  return "ok";
 }
 
 export function emptyForm(categoryId: string): PurchaseFormState {

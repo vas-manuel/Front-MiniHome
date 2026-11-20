@@ -6,6 +6,7 @@ export interface ExpenseCategory {
   id: string;
   code: string | null;
   name: string;
+  monthlyBudget: number | null;
 }
 
 export interface PurchaseAnalysis {
@@ -49,6 +50,7 @@ export interface Purchase {
     product_name: string;
     quantity: number;
     unit: string;
+    unit_price: number | null;
     line_total: number;
     discount: number;
     category: ExpenseCategory;
@@ -70,7 +72,7 @@ export interface ConsumptionSummary {
   }[];
 }
 
-const CATEGORY = `id code name`;
+const CATEGORY = `id code name monthlyBudget`;
 
 export const GET_CATEGORIES = gql`
   query ExpenseCategories {
@@ -94,7 +96,7 @@ export const GET_CONSUMPTION = gql`
       payment_method
       source
       receiptUrl
-      items { id description product_name quantity unit line_total discount category { ${CATEGORY} } }
+      items { id description product_name quantity unit unit_price line_total discount category { ${CATEGORY} } }
     }
   }
 `;
@@ -141,5 +143,117 @@ export const CREATE_CATEGORY = gql`
 export const DISCARD_UPLOAD = gql`
   mutation DiscardReceiptUpload($uploadId: ID!) {
     discardReceiptUpload(uploadId: $uploadId)
+  }
+`;
+
+export const UPDATE_PURCHASE = gql`
+  mutation UpdatePurchase($id: ID!, $input: PurchaseInput!) {
+    updatePurchase(id: $id, input: $input) { id total purchase_date }
+  }
+`;
+
+export const UPDATE_CATEGORY = gql`
+  mutation UpdateExpenseCategory($id: ID!, $name: String, $monthlyBudget: Float) {
+    updateExpenseCategory(id: $id, name: $name, monthlyBudget: $monthlyBudget) { ${CATEGORY} }
+  }
+`;
+
+export const REORDER_CATEGORIES = gql`
+  mutation ReorderExpenseCategories($ids: [ID!]!) {
+    reorderExpenseCategories(ids: $ids) { ${CATEGORY} }
+  }
+`;
+
+export const DELETE_CATEGORY = gql`
+  mutation DeleteExpenseCategory($id: ID!, $moveToId: ID!) {
+    deleteExpenseCategory(id: $id, moveToId: $moveToId)
+  }
+`;
+
+export interface MonthlyConsumption {
+  year: number;
+  month: number;
+  total: number;
+}
+
+export const CONSUMPTION_BY_MONTH = gql`
+  query ConsumptionByMonth($year: Int!, $month: Int!, $months: Int) {
+    consumptionByMonth(year: $year, month: $month, months: $months) { year month total }
+  }
+`;
+
+/* Inicio: consumo del mes, categorías con presupuesto y presupuesto del hogar */
+export const HOME_CONSUMPTION = gql`
+  query HomeConsumption($year: Int!, $month: Int!) {
+    me { household { monthlyBudget } }
+    consumptionSummary(year: $year, month: $month) {
+      total
+      categories { total items category { ${CATEGORY} } }
+    }
+    expenseCategories { ${CATEGORY} }
+  }
+`;
+
+export interface ProductHistory {
+  productName: string;
+  unit: string;
+  totalQuantity: number;
+  totalSpent: number;
+  averageUnitPrice: number | null;
+  monthly: { year: number; month: number; quantity: number; spent: number; averageUnitPrice: number | null }[];
+  byMerchant: { merchant: string | null; purchases: number; averageUnitPrice: number | null; lastDate: string }[];
+  frequency: { averageDaysBetween: number | null; daysSinceLast: number | null; lastDate: string | null; nextExpected: string | null; timesBought: number };
+  purchases: { date: string; merchant: string | null; quantity: number; lineTotal: number }[];
+}
+
+export const PRODUCT_HISTORY = gql`
+  query ProductHistory($productName: String!, $unit: String!, $year: Int!, $month: Int!, $months: Int) {
+    productHistory(productName: $productName, unit: $unit, year: $year, month: $month, months: $months) {
+      productName
+      unit
+      totalQuantity
+      totalSpent
+      averageUnitPrice
+      monthly { year month quantity spent averageUnitPrice }
+      byMerchant { merchant purchases averageUnitPrice lastDate }
+      frequency { averageDaysBetween daysSinceLast lastDate nextExpected timesBought }
+      purchases { date merchant quantity lineTotal }
+    }
+  }
+`;
+
+export interface ShoppingSuggestion {
+  key: string;
+  productName: string;
+  unit: string;
+  category: ExpenseCategory;
+  usualQuantity: number;
+  averageDaysBetween: number;
+  daysSinceLast: number;
+  lastDate: string;
+  nextExpected: string;
+  urgency: number;
+  averageUnitPrice: number | null;
+  bestMerchant: string | null;
+  bestUnitPrice: number | null;
+}
+
+export const SHOPPING_SUGGESTIONS = gql`
+  query ShoppingSuggestions {
+    shoppingSuggestions {
+      key
+      productName
+      unit
+      usualQuantity
+      averageDaysBetween
+      daysSinceLast
+      lastDate
+      nextExpected
+      urgency
+      averageUnitPrice
+      bestMerchant
+      bestUnitPrice
+      category { ${CATEGORY} }
+    }
   }
 `;
