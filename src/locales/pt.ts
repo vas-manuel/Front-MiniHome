@@ -213,6 +213,9 @@ const pt: Record<TranslationKey, string> = {
   groupAccount: "Grupo / conta",
   monthTotal: "Total do mês",
   toggleGroup: "Mostrar ou ocultar contas de {name}",
+  viewChart: "Ver gráfico",
+  viewTable: "Ver tabela",
+  otherGroups: "Outros grupos",
   chartHint: "Toque em um mês para ver o detalhe.",
 
   settings: "Configurações",

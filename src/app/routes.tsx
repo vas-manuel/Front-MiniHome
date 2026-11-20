@@ -29,9 +29,9 @@ export interface AppRoute {
 }
 
 const ThisMonthPage = lazy(() => import("../features/thisMonth/ThisMonthPage"));
-const DashboardGlobal = lazy(() => import("../DashboardGlobal"));
+const DashboardGlobal = lazy(() => import("../features/analysis/AnalysisPage"));
 const BillStructureManager = lazy(() => import("../BillStructureManager"));
-const BillAccountsManager = lazy(() => import("../BillAccountsManager"));
+const BillAccountsManager = lazy(() => import("../features/bills/BillsPage"));
 const HouseholdUsersManager = lazy(() => import("../HouseholdUsersManager"));
 const HouseholdPanel = lazy(() => import("../HouseholdPanel"));
 const HouseholdIncomeManager = lazy(() => import("../HouseholdIncomeManager"));

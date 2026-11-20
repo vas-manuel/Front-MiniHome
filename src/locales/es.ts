@@ -220,6 +220,9 @@ const es = {
   groupAccount: "Grupo / cuenta",
   monthTotal: "Total mes",
   toggleGroup: "Mostrar u ocultar cuentas de {name}",
+  viewChart: "Ver gráfico",
+  viewTable: "Ver tabla",
+  otherGroups: "Otros grupos",
   chartHint: "Toca un mes para ver el detalle.",
 
   /* Configuración */

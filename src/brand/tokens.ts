@@ -156,33 +156,33 @@ export const breakpoints = {
 
 export const touchTarget = raw.size["touch-target-min"].$value;
 
-/* Paleta de series para gráficos, derivada de tokens semánticos y de categoría */
+/*
+ * Paleta de series para gráficos. BRAND.md no define una; los colores de categoría
+ * fallan la separación para daltonismo (deutan ΔE < 3). Se usa la paleta categórica
+ * validada del método de dataviz (orden fijo, nunca cíclica), comprobada contra
+ * surface claro #FFFFFF y oscuro #16213A. Propuesta: incorporarla a tokens.json.
+ */
+const SERIES = {
+  light: ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300"],
+  dark: ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#0ca30c"],
+};
+
 export function chartSeries(mode: ColorMode) {
   const c = colors[mode];
+  const s = SERIES[mode];
   return {
-    income: c.primary,
-    expense: c.danger,
-    savings: c.success,
-    average: c.warning,
+    income: s[0],
+    expense: s[1],
+    savings: s[2],
+    balance: s[0],
+    average: c.textSecondary,
     grid: c.border,
     axis: c.borderStrong,
     label: c.textSecondary,
   };
 }
 
+/* Series por grupo: se asignan por orden alfabético del grupo, no por ranking */
 export function groupSeriesPalette(mode: ColorMode): string[] {
-  if (mode === "dark") {
-    // Las categorías no tienen variante oscura: se usan los semánticos oscuros
-    const c = colors.dark;
-    return [c.primary, c.success, c.warning, c.danger, c.textSecondary, c.primaryPressed];
-  }
-  const keys: CategoryKey[] = [
-    "internet",
-    "arriendo-dividendo",
-    "gas",
-    "tv-streaming",
-    "gastos-comunes",
-    "seguros-salud",
-  ];
-  return keys.map((k) => categoryColors(k).fg);
+  return SERIES[mode];
 }
