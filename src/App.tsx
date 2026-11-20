@@ -1,115 +1,28 @@
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-  useNavigate,
-  useLocation,
-} from "react-router-dom";
-import { gql, useMutation, useQuery } from "@apollo/client";
-import { useGoogleReCaptcha } from "react-google-recaptcha-v3";
-import { GoogleLogin } from "@react-oauth/google";
-import { useState, lazy, Suspense } from "react";
-import {
-  Container,
-  Paper,
-  Typography,
-  Stack,
-  TextField,
-  Box,
-  Button,
-  CircularProgress,
-} from "@mui/material";
-
-import DashboardIcon from "@mui/icons-material/Dashboard";
-import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
-import PeopleIcon from "@mui/icons-material/People";
-import SettingsIcon from "@mui/icons-material/Settings";
-import AccountTreeIcon from "@mui/icons-material/AccountTree";
-import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import SavingsIcon from "@mui/icons-material/Savings";
-
-import LayoutBase from "./LayoutBase";
+import { Suspense, useEffect, useMemo } from "react";
+import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { gql, useQuery } from "@apollo/client";
+import { Box, Button, CircularProgress, Paper } from "@mui/material";
+import { GoogleReCaptchaProvider } from "react-google-recaptcha-v3";
+import AuthScreen from "./auth/AuthScreen";
+import { AppShell } from "./app/AppShell";
+import { routesFor } from "./app/routes";
+import { Session, SessionContext, SessionUser } from "./app/session";
+import { EmptyState } from "./components/common";
 import { getEffectivePermissions } from "./permissions";
-import { useTranslate } from "./i18n";
-
-/* =======================
-   LAZY LOADING
-======================= */
-
-const DashboardGlobal = lazy(() => import("./DashboardGlobal"));
-const BillStructureManager = lazy(() => import("./BillStructureManager"));
-const BillAccountsManager = lazy(() => import("./BillAccountsManager"));
-const HouseholdUsersManager = lazy(() => import("./HouseholdUsersManager"));
-const HouseholdPanel = lazy(() => import("./HouseholdPanel"));
-const HouseholdIncomeManager = lazy(() => import("./HouseholdIncomeManager"));
-const SavingsManager = lazy(() => import("./SavingsManager"));
-
-const AdminDashboard = lazy(() => import("./AdminDashboard"));
-const AdminFinancialDashboard = lazy(() => import("./AdminFinancialDashboard"));
-const AdminExecutiveBoard = lazy(() => import("./AdminExecutiveBoard"));
-const ExecutiveFinancialDashboard = lazy(() => import("./ExecutiveFinancialDashboard"));
-const PlanManager = lazy(() => import("./PlanManager"));
-const MerchantManager = lazy(() => import("./MerchantManager"));
-
-/* =======================
-   GRAPHQL
-======================= */
-
-const LOGIN_MUTATION = gql`
-  mutation Login(
-    $email: String
-    $password: String
-    $googleIdToken: String
-    $recaptchaToken: String!
-  ) {
-    login(
-      email: $email
-      password: $password
-      googleIdToken: $googleIdToken
-      recaptchaToken: $recaptchaToken
-    ) {
-      accessToken
-      refreshToken
-      user {
-        id
-        name
-        role
-      }
-    }
-  }
-`;
-
-const REGISTER_MUTATION = gql`
-  mutation Register(
-    $rut: String!
-    $name: String
-    $email: String
-    $password: String
-    $googleIdToken: String
-    $recaptchaToken: String!
-    $provider: Provider!
-  ) {
-    registerHousehold(
-      rut: $rut
-      name: $name
-      email: $email
-      password: $password
-      googleIdToken: $googleIdToken
-      recaptchaToken: $recaptchaToken
-      provider: $provider
-    )
-  }
-`;
+import { useLanguage } from "./i18n";
 
 const ME_QUERY = gql`
   query Me {
     me {
       id
+      name
+      email
       role
       household {
+        id
+        name
         language
+        currency
         plan {
           name
         }
@@ -118,387 +31,95 @@ const ME_QUERY = gql`
   }
 `;
 
-/* =======================
-   APP ROOT
-======================= */
+function FullPageLoader() {
+  return (
+    <Box sx={{ display: "grid", placeItems: "center", minHeight: "60vh" }}>
+      <CircularProgress aria-label="Cargando" />
+    </Box>
+  );
+}
 
 export default function App() {
-  const { data, loading } = useQuery(ME_QUERY);
+  const { data, loading } = useQuery<{ me: SessionUser | null }>(ME_QUERY);
+  const { setHouseholdPreferences } = useLanguage();
+  const me = data?.me ?? null;
 
-  if (loading) return null;
+  // Idioma y moneda vienen del hogar (constitución, principio V)
+  useEffect(() => {
+    if (me?.household) {
+      setHouseholdPreferences({ language: me.household.language, currency: me.household.currency });
+    }
+  }, [me, setHouseholdPreferences]);
 
-  if (!data?.me) return <AuthScreen />;
+  if (loading) return <FullPageLoader />;
+  if (!me) {
+    // reCAPTCHA solo se carga en la pantalla de acceso (su sello no tapa la app)
+    return (
+      <GoogleReCaptchaProvider reCaptchaKey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}>
+        <AuthScreen />
+      </GoogleReCaptchaProvider>
+    );
+  }
 
   return (
     <BrowserRouter>
-      <MainApp />
+      <MainApp me={me} />
     </BrowserRouter>
   );
 }
 
-/* =======================
-   MAIN APP WITH ROUTER
-======================= */
+function MainApp({ me }: { me: SessionUser }) {
+  const session = useMemo<Session>(() => {
+    const plan = me.household?.plan?.name || "FULL";
+    const permissions = getEffectivePermissions(me.role, plan);
+    return {
+      user: me,
+      plan,
+      permissions,
+      isAdmin: me.role === "ADMIN" || me.role === "SYSTEM_ADMIN",
+      can: (p: string) => permissions.includes(p),
+    };
+  }, [me]);
 
-function MainApp() {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const { data } = useQuery(ME_QUERY);
-
-  const role = data?.me?.role;
-  const plan = data?.me?.household?.plan?.name || "FULL";
-  const language = data?.me?.household?.language || "es";
-
-  const { t } = useTranslate(language);
-  const permissions = getEffectivePermissions(role, plan);
-
-  const isAdmin = role === "ADMIN" || role === "SYSTEM_ADMIN";
-
-  const menuItems = isAdmin
-    ? [
-        { key: "/", label: "Dashboard", icon: <DashboardIcon /> },
-        { key: "/financial", label: "Finanzas", icon: <AccountBalanceIcon /> },
-        { key: "/executive", label: "Ejecutivo", icon: <DashboardIcon /> },
-        { key: "/plans", label: "Planes", icon: <SettingsIcon /> },
-        ...(role === "SYSTEM_ADMIN"
-          ? [{ key: "/merchants", label: "Empresas", icon: <SettingsIcon /> }]
-          : []),
-      ]
-    : [
-        { key: "/", label: "Dashboard", icon: <DashboardIcon /> },
-        { key: "/accounts", label: "Estructura", icon: <AccountTreeIcon /> },
-        { key: "/bills", label: "Montos", icon: <ReceiptLongIcon /> },
-        { key: "/incomes", label: "Ingresos", icon: <TrendingUpIcon /> },
-        { key: "/savings", label: "Ahorro", icon: <SavingsIcon /> },
-        { key: "/users", label: "Usuarios", icon: <PeopleIcon /> },
-        { key: "/settings", label: "Configuración", icon: <SettingsIcon /> },
-      ];
-
-  const disabledKeys = menuItems
-    .filter((item) => !permissions.includes(routeToPermission(item.key)))
-    .map((item) => item.key);
-
-  function routeToPermission(path: string) {
-    switch (path) {
-      case "/":
-        return "dashboard";
-      case "/accounts":
-        return "accounts";
-      case "/bills":
-        return "bills";
-      case "/incomes":
-        return "householdSettings";
-      case "/savings":
-        return "householdSettings";
-      case "/users":
-        return "users";
-      case "/settings":
-        return "householdSettings";
-      case "/financial":
-        return "financial";
-      case "/executive":
-        return "executive";
-      case "/plans":
-        return "plans";
-      default:
-        return "";
-    }
-  }
+  const routes = useMemo(() => routesFor(me.role), [me.role]);
 
   return (
-    <LayoutBase
-      user={data?.me}
-      title={isAdmin ? "Panel Administrador" : "Plataforma"}
-      roleLabel={role}
-      planLabel={plan}
-      menuItems={menuItems}
-      disabledKeys={disabledKeys}
-      activeKey={location.pathname}
-      onChangeSection={(key) => navigate(key)}
-      storageKey="main_drawer"
-    >
-      <Suspense
-        fallback={
-          <Box sx={{ display: "flex", justifyContent: "center", mt: 10 }}>
-            <CircularProgress />
-          </Box>
-        }
-      >
-        <Routes>
-          <Route
-            path="/"
-            element={
-              permissions.includes("dashboard") ? (
-                isAdmin ? <AdminDashboard /> : <DashboardGlobal />
-              ) : (
-                <Navigate to="/no-access" />
-              )
-            }
-          />
-          <Route
-            path="/accounts"
-            element={
-              permissions.includes("accounts") ? (
-                <BillStructureManager />
-              ) : (
-                <Navigate to="/no-access" />
-              )
-            }
-          />
-          <Route
-            path="/bills"
-            element={
-              permissions.includes("bills") ? (
-                <BillAccountsManager />
-              ) : (
-                <Navigate to="/no-access" />
-              )
-            }
-          />
-          <Route
-            path="/incomes"
-            element={
-              permissions.includes("householdSettings") ? (
-                <HouseholdIncomeManager />
-              ) : (
-                <Navigate to="/no-access" />
-              )
-            }
-          />
-          <Route
-            path="/savings"
-            element={
-              permissions.includes("householdSettings") ? (
-                <SavingsManager />
-              ) : (
-                <Navigate to="/no-access" />
-              )
-            }
-          />
-          <Route
-            path="/users"
-            element={
-              permissions.includes("users") ? (
-                <HouseholdUsersManager />
-              ) : (
-                <Navigate to="/no-access" />
-              )
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              permissions.includes("householdSettings") ? (
-                <HouseholdPanel />
-              ) : (
-                <Navigate to="/no-access" />
-              )
-            }
-          />
-          <Route
-            path="/financial"
-            element={
-              permissions.includes("financial") ? (
-                <AdminFinancialDashboard />
-              ) : (
-                <Navigate to="/no-access" />
-              )
-            }
-          />
-          <Route
-            path="/executive"
-            element={
-              permissions.includes("executive") ? (
-                <ExecutiveFinancialDashboard />
-              ) : (
-                <Navigate to="/no-access" />
-              )
-            }
-          />
-          <Route
-            path="/plans"
-            element={
-              permissions.includes("plans") ? (
-                <PlanManager />
-              ) : (
-                <Navigate to="/no-access" />
-              )
-            }
-          />
-
-          <Route
-            path="/merchants"
-            element={
-              role === "SYSTEM_ADMIN" ? (
-                <MerchantManager />
-              ) : (
-                <Navigate to="/no-access" />
-              )
-            }
-          />
-          <Route
-            path="/no-access"
-            element={<Typography>No tienes acceso</Typography>}
-          />
-        </Routes>
-      </Suspense>
-    </LayoutBase>
+    <SessionContext.Provider value={session}>
+      <AppShell routes={routes}>
+        <Suspense fallback={<FullPageLoader />}>
+          <Routes>
+            {routes.map(({ path, permission, Component }) => (
+              <Route
+                key={path}
+                path={path}
+                element={session.can(permission) ? <Component /> : <Navigate to="/no-access" replace />}
+              />
+            ))}
+            <Route path="/dashboard" element={<Navigate to="/analysis" replace />} />
+            <Route path="/login" element={<Navigate to="/" replace />} />
+            <Route path="/no-access" element={<StatusPage kind="noAccess" />} />
+            <Route path="*" element={<StatusPage kind="notFound" />} />
+          </Routes>
+        </Suspense>
+      </AppShell>
+    </SessionContext.Provider>
   );
 }
 
-/* =======================
-   AUTH
-======================= */
-
-function AuthScreen() {
-  const { executeRecaptcha } = useGoogleReCaptcha();
-  const [login] = useMutation(LOGIN_MUTATION);
-  const [register] = useMutation(REGISTER_MUTATION);
-
-  const [mode, setMode] = useState<"login" | "register">("login");
-
-  const [rut, setRut] = useState("");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  const handleLogin = async () => {
-    if (!executeRecaptcha) return;
-    const recaptchaToken = await executeRecaptcha("login");
-
-    await login({
-      variables: { email, password, recaptchaToken },
-    });
-
-    window.location.reload();
-  };
-
-  const handleRegister = async () => {
-    if (!executeRecaptcha) return;
-    const recaptchaToken = await executeRecaptcha("register");
-
-    await register({
-      variables: {
-        rut,
-        name,
-        email,
-        password,
-        recaptchaToken,
-        provider: "LOCAL",
-      },
-    });
-
-    alert("Registro enviado ✅ Pendiente activación.");
-    setMode("login");
-  };
-
-  const handleGoogle = async (credentialResponse: any) => {
-    if (!credentialResponse?.credential || !executeRecaptcha) return;
-
-    const recaptchaToken = await executeRecaptcha("google_auth");
-
-    if (mode === "login") {
-      await login({
-        variables: {
-          googleIdToken: credentialResponse.credential,
-          recaptchaToken,
-        },
-      });
-
-      window.location.reload();
-    } else {
-      await register({
-        variables: {
-          rut,
-          googleIdToken: credentialResponse.credential,
-          recaptchaToken,
-          provider: "GOOGLE",
-        },
-      });
-
-      alert("Registro Google enviado ✅ Pendiente activación.");
-      setMode("login");
-    }
-  };
-
+function StatusPage({ kind }: { kind: "noAccess" | "notFound" }) {
+  const { t } = useLanguage();
+  const navigate = useNavigate();
   return (
-    <Container maxWidth="sm" sx={{ mt: 10 }}>
-      <Paper sx={{ p: 4, textAlign: "center" }}>
-        <Box
-          component="img"
-          src="/monihome-logo.png"
-          alt="MoniHome"
-          sx={{
-            height: 80,
-            mb: 3,
-          }}
-        />
-        <Typography variant="h5" mb={3}>
-          {mode === "login" ? "Iniciar Sesión" : "Registrar Hogar"}
-        </Typography>
-
-        <Stack spacing={2}>
-          {mode === "register" && (
-            <>
-              <TextField
-                label="RUT"
-                value={rut}
-                onChange={(e) => setRut(e.target.value)}
-                fullWidth
-              />
-              <TextField
-                label="Nombre"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                fullWidth
-              />
-            </>
-          )}
-
-          <TextField
-            label="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            fullWidth
-          />
-
-          <TextField
-            type="password"
-            label="Contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            fullWidth
-          />
-        </Stack>
-
-        <Box mt={3}>
-          {mode === "login" ? (
-            <Button fullWidth variant="contained" onClick={handleLogin}>
-              Ingresar
-            </Button>
-          ) : (
-            <Button fullWidth variant="contained" onClick={handleRegister}>
-              Registrar
-            </Button>
-          )}
-        </Box>
-
-        <Box mt={2}>
-          <GoogleLogin onSuccess={handleGoogle} onError={() => {}} />
-        </Box>
-
-        <Box mt={2}>
-          <Button
-            fullWidth
-            onClick={() =>
-              setMode(mode === "login" ? "register" : "login")
-            }
-          >
-            {mode === "login" ? "Crear cuenta" : "Volver a Login"}
+    <Paper sx={{ mt: 2 }}>
+      <EmptyState
+        title={kind === "noAccess" ? t("noAccess") : t("notFound")}
+        description={kind === "noAccess" ? t("noAccessHint") : undefined}
+        action={
+          <Button variant="contained" onClick={() => navigate("/")}>
+            {t("goHome")}
           </Button>
-        </Box>
-      </Paper>
-    </Container>
+        }
+      />
+    </Paper>
   );
 }

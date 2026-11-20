@@ -12,7 +12,6 @@ import App from "./App";
 import { LanguageProvider } from "./i18n";
 import { ColorModeProvider } from "./brand/ColorMode";
 import { GoogleOAuthProvider } from "@react-oauth/google";
-import { GoogleReCaptchaProvider } from "react-google-recaptcha-v3";
 /* ✅ Autenticación basada en cookies httpOnly */
 
 let API_URL =
@@ -64,15 +63,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ApolloProvider client={client}>
       <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
-        <GoogleReCaptchaProvider
-          reCaptchaKey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-        >
-          <LanguageProvider>
-            <ColorModeProvider>
-              <App />
-            </ColorModeProvider>
-          </LanguageProvider>
-        </GoogleReCaptchaProvider>
+        <LanguageProvider>
+          <ColorModeProvider>
+            <App />
+          </ColorModeProvider>
+        </LanguageProvider>
       </GoogleOAuthProvider>
     </ApolloProvider>
   </React.StrictMode>

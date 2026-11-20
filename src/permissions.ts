@@ -1,5 +1,10 @@
+/* Roles reales del contrato GraphQL: SYSTEM_ADMIN, OWNER, MANAGER, VIEWER.
+   ADMIN / HOUSEHOLD / USER se mantienen por compatibilidad. */
 export type Role =
   | "SYSTEM_ADMIN"
+  | "OWNER"
+  | "MANAGER"
+  | "VIEWER"
   | "ADMIN"
   | "HOUSEHOLD"
   | "USER"
@@ -27,6 +32,12 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
     "householdSettings",
   ],
   USER: ["home", "dashboard"],
+  // Titular: todo el hogar
+  OWNER: ["home", "dashboard", "accounts", "bills", "users", "householdSettings"],
+  // Gestor: opera cuentas y montos, pero no administra miembros
+  MANAGER: ["home", "dashboard", "accounts", "bills", "householdSettings"],
+  // Lector: solo consulta
+  VIEWER: ["home", "dashboard"],
 };
 
 /* ========================
@@ -68,8 +79,9 @@ export function getEffectivePermissions(
   role: Role,
   plan: Plan
 ): string[] {
+  // Rol desconocido → mínimo privilegio (antes caía en permisos completos)
   const rolePermissions =
-    ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS["HOUSEHOLD"];
+    ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS["VIEWER"];
 
   // ✅ SYSTEM_ADMIN no depende del plan
   if (role === "SYSTEM_ADMIN") {
