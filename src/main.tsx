@@ -1,4 +1,4 @@
-import React, { useMemo, useState, createContext } from "react";
+import React from "react";
 import ReactDOM from "react-dom/client";
 import {
   ApolloClient,
@@ -10,23 +10,10 @@ import {
 import { onError } from "@apollo/client/link/error";
 import App from "./App";
 import { LanguageProvider } from "./i18n";
-import {
-  ThemeProvider,
-  CssBaseline,
-  createTheme,
-} from "@mui/material";
-import baseTheme from "./theme";
+import { ColorModeProvider } from "./brand/ColorMode";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { GoogleReCaptchaProvider } from "react-google-recaptcha-v3";
-/* ✅ Autenticación ahora basada en cookies httpOnly */
-
-/* =======================
-   DARK MODE CONTEXT
-======================= */
-
-export const ColorModeContext = createContext({
-  toggleColorMode: () => {},
-});
+/* ✅ Autenticación basada en cookies httpOnly */
 
 let API_URL =
   import.meta.env.VITE_API_URL?.trim() || "http://localhost:3030/graphql";
@@ -62,11 +49,8 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
     }
   }
 
-  if (shouldRedirect) {
-    // ✅ Limpiar estado visual si fuera necesario
-    localStorage.removeItem("themeMode");
-
-    // ✅ Redirigir explícitamente a login
+  // ✅ Redirigir a login (evitando bucle si ya estamos ahí)
+  if (shouldRedirect && window.location.pathname !== "/login") {
     window.location.href = "/login";
   }
 });
@@ -76,48 +60,6 @@ const client = new ApolloClient({
   cache: new InMemoryCache(),
 });
 
-function Root() {
-  const [mode, setMode] = useState<"light" | "dark">(
-    (localStorage.getItem("themeMode") as "light" | "dark") || "light"
-  );
-
-  const colorMode = useMemo(
-    () => ({
-      toggleColorMode: () => {
-        const newMode = mode === "light" ? "dark" : "light";
-        localStorage.setItem("themeMode", newMode);
-        setMode(newMode);
-      },
-    }),
-    [mode]
-  );
-
-  const theme = useMemo(
-    () =>
-      createTheme(baseTheme, {
-        palette: {
-          mode,
-          background: {
-            default:
-              mode === "light"
-                ? baseTheme.palette.background.default
-                : "#0f172a",
-          },
-        },
-      }),
-    [mode]
-  );
-
-  return (
-    <ColorModeContext.Provider value={colorMode}>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <App />
-      </ThemeProvider>
-    </ColorModeContext.Provider>
-  );
-}
-
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ApolloProvider client={client}>
@@ -126,7 +68,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           reCaptchaKey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
         >
           <LanguageProvider>
-            <Root />
+            <ColorModeProvider>
+              <App />
+            </ColorModeProvider>
           </LanguageProvider>
         </GoogleReCaptchaProvider>
       </GoogleOAuthProvider>
