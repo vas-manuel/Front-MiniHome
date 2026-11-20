@@ -289,7 +289,7 @@ export default function BillStructureManager() {
   return (
     <Box>
       <Typography variant="h5" mb={3}>
-        Mantenedor de Cuentas
+        Cuentas y grupos
       </Typography>
 
       <Tabs
@@ -314,10 +314,6 @@ export default function BillStructureManager() {
       <Paper
         sx={{
           p: 2,
-          transition: "all 0.3s ease",
-          "&:hover": {
-            boxShadow: "0 10px 28px rgba(0,0,0,0.08)",
-          },
         }}
       >
         {loadingFixed || loadingVariable ? (

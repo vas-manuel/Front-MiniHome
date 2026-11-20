@@ -141,7 +141,7 @@ export default function AdminDashboard() {
                 minWidth: 200,
                 p: 2,
                 borderRadius: 2,
-                background: "#f5f5f5",
+                bgcolor: "background.default",
               }}
             >
               <Typography variant="subtitle2" color="text.secondary">

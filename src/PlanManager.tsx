@@ -91,10 +91,6 @@ export default function PlanManager() {
 
       <Paper
         sx={{
-          transition: "all 0.3s ease",
-          "&:hover": {
-            boxShadow: "0 10px 28px rgba(0,0,0,0.08)",
-          },
         }}
       >
         {loading ? (

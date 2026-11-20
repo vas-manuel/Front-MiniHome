@@ -1,153 +1,76 @@
-import React, { createContext, useContext, useMemo, useState, useEffect } from "react";
+import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
+import es from "./locales/es";
+import en from "./locales/en";
+import pt from "./locales/pt";
+import { formatMoney } from "./utils/format";
 
 export type Language = "es" | "en" | "pt";
+type Vars = Record<string, string | number>;
 
-/* =========================
-   DICCIONARIOS
-========================= */
-
-const translations: Record<Language, Record<string, string>> = {
-  es: {
-    login: "Iniciar Sesión",
-    register: "Registrar Hogar",
-    email: "Email",
-    password: "Contraseña",
-    name: "Nombre",
-    rut: "RUT",
-    createAccount: "Crear cuenta",
-    backToLogin: "Volver a Login",
-    welcome: "Bienvenido",
-    dashboard: "Dashboard",
-    finances: "Finanzas",
-    executive: "Ejecutivo",
-    structure: "Estructura",
-    amounts: "Montos",
-    users: "Usuarios",
-    settings: "Configuración",
-    save: "Guardar",
-    cancel: "Cancelar",
-    delete: "Eliminar",
-    add: "Agregar",
-    month: "Mes",
-    amount: "Monto",
-    status: "Estado",
-    actions: "Acciones",
-    year: "Año",
-    selectAccount: "Seleccionar Cuenta",
-    importExcel: "Importar Excel",
-    downloadTemplate: "Descargar Formato",
-    amountManagement: "Gestión de Montos"
-  },
-  en: {
-    login: "Sign In",
-    register: "Register Household",
-    email: "Email",
-    password: "Password",
-    name: "Name",
-    rut: "Tax ID",
-    createAccount: "Create account",
-    backToLogin: "Back to Login",
-    welcome: "Welcome",
-    dashboard: "Dashboard",
-    finances: "Finances",
-    executive: "Executive",
-    structure: "Structure",
-    amounts: "Amounts",
-    users: "Users",
-    settings: "Settings",
-    save: "Save",
-    cancel: "Cancel",
-    delete: "Delete",
-    add: "Add",
-    month: "Month",
-    amount: "Amount",
-    status: "Status",
-    actions: "Actions",
-    year: "Year",
-    selectAccount: "Select Account",
-    importExcel: "Import Excel",
-    downloadTemplate: "Download Template",
-    amountManagement: "Amount Management"
-  },
-  pt: {
-    login: "Entrar",
-    register: "Registrar Casa",
-    email: "Email",
-    password: "Senha",
-    name: "Nome",
-    rut: "Documento",
-    createAccount: "Criar conta",
-    backToLogin: "Voltar ao Login",
-    welcome: "Bem-vindo",
-    dashboard: "Painel",
-    finances: "Finanças",
-    executive: "Executivo",
-    structure: "Estrutura",
-    amounts: "Valores",
-    users: "Usuários",
-    settings: "Configurações",
-    save: "Salvar",
-    cancel: "Cancelar",
-    delete: "Excluir",
-    add: "Adicionar",
-    month: "Mês",
-    amount: "Valor",
-    status: "Status",
-    actions: "Ações",
-    year: "Ano",
-    selectAccount: "Selecionar Conta",
-    importExcel: "Importar Excel",
-    downloadTemplate: "Baixar Modelo",
-    amountManagement: "Gestão de Valores"
-  }
-};
-
-/* =========================
-   CONTEXTO GLOBAL
-========================= */
-
-interface LanguageContextProps {
-  language: Language;
-  setLanguage: (lang: Language) => void;
-  t: (key: string) => string;
-  locale: string;
-}
+const translations: Record<Language, Record<string, string>> = { es, en, pt };
 
 const localeMap: Record<Language, string> = {
   es: "es-CL",
   en: "en-US",
-  pt: "pt-BR"
+  pt: "pt-BR",
 };
+
+function normalizeLanguage(value?: string | null): Language {
+  return value === "en" || value === "pt" ? value : "es";
+}
+
+function translate(lang: Language, key: string, vars?: Vars) {
+  const template = translations[lang][key] ?? translations.es[key] ?? key;
+  if (!vars) return template;
+  return template.replace(/\{(\w+)\}/g, (_, name) =>
+    vars[name] !== undefined ? String(vars[name]) : `{${name}}`
+  );
+}
+
+/* =========================
+   CONTEXTO: idioma y moneda del hogar (constitución, principio V)
+========================= */
+
+interface LanguageContextProps {
+  language: Language;
+  currency: string;
+  locale: string;
+  setLanguage: (lang: Language) => void;
+  setHouseholdPreferences: (prefs: { language?: string | null; currency?: string | null }) => void;
+  t: (key: string, vars?: Vars) => string;
+  money: (value: number | null | undefined) => string;
+}
 
 const LanguageContext = createContext<LanguageContextProps | undefined>(undefined);
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [language, setLanguage] = useState<Language>("es");
+  const [language, setLanguageState] = useState<Language>("es");
+  const [currency, setCurrency] = useState<string>("CLP");
 
-  useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-    if (storedUser?.language) {
-      setLanguage(storedUser.language);
-    }
-  }, []);
+  const setLanguage = useCallback((lang: Language) => setLanguageState(normalizeLanguage(lang)), []);
 
-  const t = useMemo(() => {
-    return (key: string) =>
-      translations[language][key] || key;
-  }, [language]);
-
-  const value: LanguageContextProps = {
-    language,
-    setLanguage,
-    t,
-    locale: localeMap[language]
-  };
-
-  return React.createElement(
-    LanguageContext.Provider,
-    { value },
-    children
+  const setHouseholdPreferences = useCallback(
+    (prefs: { language?: string | null; currency?: string | null }) => {
+      if (prefs.language) setLanguageState(normalizeLanguage(prefs.language));
+      if (prefs.currency) setCurrency(prefs.currency);
+    },
+    []
   );
+
+  const value = useMemo<LanguageContextProps>(() => {
+    const locale = localeMap[language];
+    return {
+      language,
+      currency,
+      locale,
+      setLanguage,
+      setHouseholdPreferences,
+      t: (key, vars) => translate(language, key, vars),
+      money: (v) => formatMoney(v, currency, locale),
+    };
+  }, [language, currency, setLanguage, setHouseholdPreferences]);
+
+  return React.createElement(LanguageContext.Provider, { value }, children);
 };
 
 export const useLanguage = () => {
@@ -158,13 +81,10 @@ export const useLanguage = () => {
   return context;
 };
 
-/* ✅ Compatibilidad temporal con código antiguo */
+/* Compatibilidad con código antiguo: usa el contexto si existe */
 export function useTranslate(language?: string) {
-  const lang: Language =
-    language === "en" || language === "pt" ? language : "es";
-
-  const t = (key: string) =>
-    translations[lang][key] || key;
-
+  const ctx = useContext(LanguageContext);
+  const lang: Language = ctx?.language ?? normalizeLanguage(language);
+  const t = (key: string, vars?: Vars) => translate(lang, key, vars);
   return { t, lang };
 }
