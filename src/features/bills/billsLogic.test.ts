@@ -100,6 +100,11 @@ describe("recordState", () => {
   it("postergado no pagado se muestra postergado aunque sea de un mes pasado", () => {
     expect(recordState({ ...base, month: 10, isDeferred: true }, 5, TODAY).state).toBe("deferred");
   });
+  it("usa due_date del monto antes que el día de la cuenta (R10)", () => {
+    expect(recordState({ ...base, due_date: "2026-11-21" }, 28, TODAY).state).toBe("dueSoon");
+    expect(recordState({ ...base, due_date: "2026-11-01" }, 28, TODAY).state).toBe("overdue");
+  });
+
   it("mes pasado impago → vencido; mes actual según día de vencimiento", () => {
     expect(recordState({ ...base, month: 10 }, null, TODAY).state).toBe("overdue");
     expect(recordState(base, 19, TODAY).state).toBe("overdue");

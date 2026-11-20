@@ -2,7 +2,7 @@
  * Lógica de la pantalla "Pagos y montos", extraída sin cambios de comportamiento
  * desde BillAccountsManager.tsx y cubierta por pruebas (constitución, principio III).
  */
-import { AmountRecord, BillState, dueDateFor, isHiddenDeferred } from "../thisMonth/monthBills";
+import { AmountRecord, BillState, dueDateFor, isHiddenDeferred, parseIsoDate } from "../thisMonth/monthBills";
 
 export interface BillAmount extends AmountRecord {
   id: string;
@@ -10,6 +10,8 @@ export interface BillAmount extends AmountRecord {
   quantity?: number | null;
   unit_price?: number | null;
   purchase_date?: string | null;
+  due_date?: string | null;
+  receipt?: { id: string; url: string; mimeType: string } | null;
 }
 
 export function previousPeriod(month: number, year: number) {
@@ -87,11 +89,11 @@ export function formatAmountInput(value: string, locale = "es-CL") {
 
 /* Estado visual de un registro, con las mismas reglas que "Este mes" */
 export function recordState(
-  r: { year: number; month: number; status: string; isDeferred?: boolean | null; base_amount?: number | null; carried_amount?: number | null },
+  r: { year: number; month: number; status: string; isDeferred?: boolean | null; base_amount?: number | null; carried_amount?: number | null; due_date?: string | null },
   dueDay: number | null | undefined,
   today = new Date()
 ): { state: BillState; daysUntilDue: number | null; dueDate: Date | null } {
-  const dueDate = dueDateFor(r.year, r.month, dueDay);
+  const dueDate = parseIsoDate(r.due_date) ?? dueDateFor(r.year, r.month, dueDay);
   const daysUntilDue = dueDate
     ? Math.round(
         (new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate()).getTime() -

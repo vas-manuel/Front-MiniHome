@@ -29,6 +29,12 @@ export const GET_AMOUNTS = gql`
       quantity
       unit_price
       purchase_date
+      due_date
+      receipt {
+        id
+        url
+        mimeType
+      }
     }
   }
 `;

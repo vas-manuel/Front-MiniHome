@@ -21,6 +21,7 @@ export const MONTH_BILLS_QUERY = gql`
         carried_amount
         status
         isDeferred
+        due_date
       }
     }
   }

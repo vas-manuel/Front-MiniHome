@@ -22,6 +22,7 @@ import { BillAmount, includesCarriedFromPrevious, nextPeriod, sortByPeriod } fro
 import { AmountRow } from "./AmountRow";
 import { AmountFormDialog, AmountFormValues, DeleteAmountDialog } from "./AmountDialogs";
 import { AmountHistory, VariableSummaryCards } from "./BillsInsights";
+import { ReceiptUploadButton } from "../receipts/ReceiptUploadButton";
 import {
   CREATE_AMOUNT,
   DEFER_AMOUNT,
@@ -158,19 +159,21 @@ export default function BillsPage() {
         title={t("amountManagement")}
         subtitle={t("amountManagementSubtitle")}
         actions={
-          selectedAccount &&
-          canEdit && (
-            <Button
-              variant="contained"
-              startIcon={<AddRounded />}
-              onClick={() => {
-                setEditing(null);
-                setFormOpen(true);
-              }}
-            >
-              {t("newAmount")}
-            </Button>
-          )
+          <>
+            <ReceiptUploadButton />
+            {selectedAccount && canEdit && (
+              <Button
+                variant="contained"
+                startIcon={<AddRounded />}
+                onClick={() => {
+                  setEditing(null);
+                  setFormOpen(true);
+                }}
+              >
+                {t("newAmount")}
+              </Button>
+            )}
+          </>
         }
       />
 

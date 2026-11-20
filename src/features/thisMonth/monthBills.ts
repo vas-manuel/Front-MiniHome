@@ -14,6 +14,8 @@ export interface AmountRecord {
   carried_amount?: number | null;
   status: AmountStatus | string;
   isDeferred?: boolean | null;
+  /** Vencimiento propio del monto (cargado desde una boleta); tiene prioridad sobre due_day */
+  due_date?: string | null;
 }
 
 export interface FixedAccount {
@@ -54,6 +56,12 @@ export function daysInMonth(year: number, month: number) {
   return new Date(year, month, 0).getDate();
 }
 
+/** "2026-11-25" → Date local (sin desfase de zona horaria) */
+export function parseIsoDate(value?: string | null): Date | null {
+  const m = value?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
+}
+
 export function dueDateFor(year: number, month: number, dueDay?: number | null) {
   if (!dueDay || dueDay < 1) return null;
   return new Date(year, month - 1, Math.min(dueDay, daysInMonth(year, month)));
@@ -80,7 +88,9 @@ export function buildMonthBills(
   return accounts.map((acc) => {
     const monthRecords = (acc.amounts || []).filter((a) => a.year === year && a.month === month);
     const visible = monthRecords.filter((r) => !isHiddenDeferred(r));
-    const dueDate = dueDateFor(year, month, acc.due_day);
+    // R10: el vencimiento del monto manda; si no tiene, se usa el día de vencimiento de la cuenta
+    const ownDue = visible.map((r) => parseIsoDate(r.due_date)).find(Boolean) ?? null;
+    const dueDate = ownDue ?? dueDateFor(year, month, acc.due_day);
     const daysUntilDue = dueDate ? dayDiff(today, dueDate) : null;
 
     const base: Omit<MonthBill, "state" | "recordStatus" | "amount"> = {

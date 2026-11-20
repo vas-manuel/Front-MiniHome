@@ -12,6 +12,7 @@ import { amountSx } from "../../brand/theme";
 import { StatusChip } from "../../components/StatusChip";
 import { formatMonthYear } from "../../utils/format";
 import { BillAmount, recordState } from "./billsLogic";
+import { ReceiptViewButton } from "../receipts/ReceiptViewButton";
 
 const STATUS_OPTIONS = [
   { value: "NOT_CONFIRMED", key: "statusToConfirmOption" },
@@ -86,6 +87,8 @@ export function AmountRow({ amount: a, isVariable, dueDay, carriedFromPrevious, 
         )}
       </Stack>
 
+      {a.receipt && !canEdit && <ReceiptViewButton receipt={a.receipt} title={period} />}
+
       {canEdit && (
         <Stack direction="row" alignItems="center" spacing={0.5} sx={{ ml: { xs: "auto", sm: 0 } }}>
           {!paid && (
@@ -100,6 +103,7 @@ export function AmountRow({ amount: a, isVariable, dueDay, carriedFromPrevious, 
               {t("markPaid")}
             </Button>
           )}
+          {a.receipt && <ReceiptViewButton receipt={a.receipt} title={period} />}
           <Tooltip title={t("actions")}>
             <IconButton onClick={(e) => setAnchor(e.currentTarget)} aria-label={`${t("actions")}: ${period}`}>
               <MoreVertRounded />

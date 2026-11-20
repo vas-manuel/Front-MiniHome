@@ -25,6 +25,7 @@ import { EmptyState, MonthSwitcher, PageHeader } from "../../components/common";
 import { formatMonthName, formatShortDate } from "../../utils/format";
 import { BillState, groupByState, MonthBill, summarizeMonth } from "./monthBills";
 import { useMonthBills } from "./useMonthBills";
+import { ReceiptUploadButton } from "../receipts/ReceiptUploadButton";
 
 const SECTION_LABEL: Record<BillState, string> = {
   overdue: "overdueSection",
@@ -78,11 +79,14 @@ export default function ThisMonthPage() {
         title={t("thisMonthTitle", { month: monthName })}
         subtitle={t("thisMonthSubtitle")}
         actions={
-          <MonthSwitcher
-            year={period.year}
-            month={period.month}
-            onChange={(year, month) => setPeriod({ year, month })}
-          />
+          <>
+            <ReceiptUploadButton />
+            <MonthSwitcher
+              year={period.year}
+              month={period.month}
+              onChange={(year, month) => setPeriod({ year, month })}
+            />
+          </>
         }
       />
 

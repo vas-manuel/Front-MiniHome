@@ -122,6 +122,23 @@ describe("buildMonthBills", () => {
   });
 });
 
+describe("vencimiento propio del monto (R10)", () => {
+  it("due_date del monto tiene prioridad sobre el due_day de la cuenta", () => {
+    const [b] = buildMonthBills([acc({ due_day: 28, amounts: [rec({ due_date: "2026-11-21" })] })], 2026, 11, TODAY);
+    expect(b.state).toBe("dueSoon");
+    expect(b.daysUntilDue).toBe(1);
+    expect(b.dueDate?.getDate()).toBe(21);
+  });
+  it("due_date vencido marca la cuenta vencida aunque la cuenta no tenga due_day", () => {
+    const [b] = buildMonthBills([acc({ due_day: null, amounts: [rec({ due_date: "2026-11-10" })] })], 2026, 11, TODAY);
+    expect(b.state).toBe("overdue");
+  });
+  it("sin due_date se mantiene el comportamiento anterior", () => {
+    const [b] = buildMonthBills([acc({ due_day: 28, amounts: [rec({ due_date: null })] })], 2026, 11, TODAY);
+    expect(b.dueDate?.getDate()).toBe(28);
+  });
+});
+
 describe("summarizeMonth", () => {
   it("totaliza pagado y por pagar, ignorando cuentas sin monto o postergadas", () => {
     const bills = buildMonthBills(
