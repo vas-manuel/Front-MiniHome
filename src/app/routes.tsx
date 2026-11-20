@@ -12,6 +12,7 @@ import AccountBalanceRounded from "@mui/icons-material/AccountBalanceRounded";
 import QueryStatsRounded from "@mui/icons-material/QueryStatsRounded";
 import WorkspacePremiumRounded from "@mui/icons-material/WorkspacePremiumRounded";
 import StorefrontRounded from "@mui/icons-material/StorefrontRounded";
+import ShoppingBasketRounded from "@mui/icons-material/ShoppingBasketRounded";
 
 export interface AppRoute {
   path: string;
@@ -32,6 +33,7 @@ const ThisMonthPage = lazy(() => import("../features/thisMonth/ThisMonthPage"));
 const DashboardGlobal = lazy(() => import("../features/analysis/AnalysisPage"));
 const BillStructureManager = lazy(() => import("../BillStructureManager"));
 const BillAccountsManager = lazy(() => import("../features/bills/BillsPage"));
+const ConsumptionPage = lazy(() => import("../features/consumption/ConsumptionPage"));
 const HouseholdUsersManager = lazy(() => import("../HouseholdUsersManager"));
 const HouseholdPanel = lazy(() => import("../HouseholdPanel"));
 const HouseholdIncomeManager = lazy(() => import("../HouseholdIncomeManager"));
@@ -47,6 +49,7 @@ const MerchantManager = lazy(() => import("../MerchantManager"));
 export const HOUSEHOLD_ROUTES: AppRoute[] = [
   { path: "/", labelKey: "navHome", icon: <HomeRounded />, permission: "dashboard", section: "month", primaryMobile: true, Component: ThisMonthPage },
   { path: "/bills", labelKey: "navBills", shortLabelKey: "navBillsShort", icon: <ReceiptLongRounded />, permission: "bills", section: "month", primaryMobile: true, Component: BillAccountsManager },
+  { path: "/consumption", labelKey: "navConsumption", icon: <ShoppingBasketRounded />, permission: "bills", section: "month", Component: ConsumptionPage },
   { path: "/analysis", labelKey: "navAnalysis", icon: <InsightsRounded />, permission: "dashboard", section: "month", primaryMobile: true, Component: DashboardGlobal },
   { path: "/incomes", labelKey: "navIncomes", icon: <TrendingUpRounded />, permission: "householdSettings", section: "month", Component: HouseholdIncomeManager },
   { path: "/savings", labelKey: "navSavings", icon: <SavingsRounded />, permission: "householdSettings", section: "month", Component: SavingsManager },
