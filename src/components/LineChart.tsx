@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Box, ButtonBase, Paper, Stack, Typography, useTheme } from "@mui/material";
 import { amountSx } from "../brand/theme";
-import { formatCompact } from "../utils/format";
+import { formatCompact, niceScale } from "../utils/format";
 
 export interface Series {
   key: string;
@@ -61,18 +61,14 @@ export function LineChart({
 
   const visible = series.filter((s) => !hidden[s.key]);
   const all = visible.flatMap((s) => s.values);
-  const rawMax = Math.max(...all, 0);
-  const rawMin = Math.min(...all, 0);
-  const span = rawMax - rawMin || 1;
-  const max = rawMax + span * 0.05;
-  const min = rawMin < 0 ? rawMin - span * 0.05 : 0;
+  const integer = all.every((v) => Number.isInteger(v));
+  const { min, max, ticks } = niceScale(Math.min(...all, 0), Math.max(...all, 0), 4, integer);
 
   const innerW = width - PAD.left - PAD.right;
   const innerH = height - PAD.top - PAD.bottom;
   const n = labels.length;
   const x = (i: number) => PAD.left + (n <= 1 ? innerW / 2 : (i / (n - 1)) * innerW);
   const y = (v: number) => PAD.top + (1 - (v - min) / (max - min || 1)) * innerH;
-  const ticks = Array.from({ length: 5 }, (_, i) => min + ((max - min) * i) / 4);
   const labelEvery = width < 520 ? 3 : width < 760 ? 2 : 1;
 
   const indexFromEvent = (clientX: number) => {

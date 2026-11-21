@@ -21,8 +21,9 @@ export type Plan =
 ======================== */
 
 export const ROLE_PERMISSIONS: Record<Role, string[]> = {
-  SYSTEM_ADMIN: ["dashboard", "financial", "executive", "plans"],
-  ADMIN: ["dashboard"],
+  SYSTEM_ADMIN: ["dashboard", "households", "financial", "plans"],
+  // Administrador de solo lectura: ve el panel, no da cortesías ni cambia parámetros
+  ADMIN: ["dashboard", "households", "financial"],
   HOUSEHOLD: [
     "home",
     "dashboard",
