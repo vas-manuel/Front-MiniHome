@@ -452,6 +452,11 @@ const pt: Record<TranslationKey, string> = {
   settingsPlanManage: "Ver planos",
   userSaveError: "Não conseguimos salvar o membro. Confira os dados e tente de novo.",
   userEmailTaken: "Esse e-mail já está cadastrado.",
+  notifPlanTrial: "Seu teste do plano {plan} termina em {days} dias",
+  notifPlanPastDue: "Não conseguimos cobrar seu plano. Confira seu cartão.",
+  notifPlanLimit_accounts: "Você chegou ao máximo de contas do seu plano",
+  notifPlanLimit_users: "Você chegou ao máximo de membros do seu plano",
+  notifPlanLimit_ai: "Você usou todas as leituras com IA deste mês",
 };
 
 export default pt;

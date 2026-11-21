@@ -96,3 +96,33 @@ export function parsePaymentReturn(search: string): PaymentReturn | null {
   const v = new URLSearchParams(search).get("pago");
   return v === "ok" || v === "pendiente" || v === "rechazado" || v === "error" ? v : null;
 }
+
+export interface PlanAlertInput extends HouseholdPlanState {
+  totalUsers?: number;
+  userLimit?: number | null;
+  totalBillAccounts?: number;
+  accountLimit?: number | null;
+  aiReadsUsed?: number;
+  aiReadsLimit?: number | null;
+}
+
+export type PlanAlert =
+  | { id: "trial"; days: number }
+  | { id: "pastDue" }
+  | { id: "limit"; what: "users" | "accounts" | "ai" };
+
+/** Avisos del plan para la campana: prueba por terminar (7 días), cobro fallido y límites alcanzados */
+export function planAlerts(h: PlanAlertInput | null | undefined): PlanAlert[] {
+  if (!h) return [];
+  const out: PlanAlert[] = [];
+  const free = !h.plan || h.plan.name.toUpperCase() === "GRATIS";
+  if (!free && h.subscriptionStatus === "TRIAL" && h.daysRemaining != null && h.daysRemaining <= 7) {
+    out.push({ id: "trial", days: h.daysRemaining });
+  }
+  if (!free && h.subscriptionStatus === "PAST_DUE") out.push({ id: "pastDue" });
+  const full = (used?: number, limit?: number | null) => limit != null && used != null && used >= limit;
+  if (full(h.totalBillAccounts, h.accountLimit)) out.push({ id: "limit", what: "accounts" });
+  if (full(h.totalUsers, h.userLimit)) out.push({ id: "limit", what: "users" });
+  if (full(h.aiReadsUsed, h.aiReadsLimit)) out.push({ id: "limit", what: "ai" });
+  return out;
+}

@@ -24,7 +24,8 @@ import { useLanguage } from "../i18n";
 import { useColorMode } from "../brand/ColorMode";
 import { useSession } from "./session";
 import { useMonthBills } from "../features/thisMonth/useMonthBills";
-import { usePlanLabel } from "../features/plans/planLimit";
+import { PLANS_PATH, usePlanLabel } from "../features/plans/planLimit";
+import { planAlerts } from "../features/plans/plansLogic";
 import { StatusChip } from "../components/StatusChip";
 
 const ADMIN_NOTIFICATIONS = gql`
@@ -35,6 +36,29 @@ const ADMIN_NOTIFICATIONS = gql`
       daysRemaining
       usagePercentageUsers
       usagePercentageAccounts
+    }
+  }
+`;
+
+const PLAN_ALERTS = gql`
+  query PlanAlerts {
+    me {
+      id
+      household {
+        id
+        plan {
+          id
+          name
+        }
+        subscriptionStatus
+        daysRemaining
+        totalUsers
+        userLimit
+        totalBillAccounts
+        accountLimit
+        aiReadsUsed
+        aiReadsLimit
+      }
     }
   }
 `;
@@ -72,6 +96,21 @@ export function NotificationsButton() {
     skip: !isHousehold || !can("dashboard"),
   });
   const { data: adminData } = useQuery(ADMIN_NOTIFICATIONS, { skip: !isSystemAdmin });
+  const { data: planData } = useQuery(PLAN_ALERTS, { skip: !isHousehold, fetchPolicy: "cache-and-network" });
+  const planLabel = usePlanLabel();
+  const planItems = useMemo(
+    () =>
+      planAlerts(planData?.me?.household).map((a) => ({
+        id: a.id === "limit" ? `limit-${a.what}` : a.id,
+        message:
+          a.id === "trial"
+            ? t("notifPlanTrial", { plan: planLabel(planData?.me?.household?.plan?.name), days: a.days })
+            : a.id === "pastDue"
+            ? t("notifPlanPastDue")
+            : t(`notifPlanLimit_${a.what}`),
+      })),
+    [planData, t, planLabel]
+  );
 
   const billAlerts = useMemo(
     () => bills.filter((b) => b.state === "overdue" || b.state === "dueSoon"),
@@ -90,7 +129,7 @@ export function NotificationsButton() {
     return list;
   }, [adminData, t]);
 
-  const count = isHousehold ? billAlerts.length : adminAlerts.length;
+  const count = isHousehold ? billAlerts.length + planItems.length : adminAlerts.length;
   const label = `${t("notifications")}${count ? ` (${count})` : ""}`;
 
   return (
@@ -117,6 +156,18 @@ export function NotificationsButton() {
             {t("noNotifications")}
           </Typography>
         )}
+        {planItems.map((a) => (
+          <MenuItem
+            key={a.id}
+            onClick={() => {
+              setAnchor(null);
+              navigate(PLANS_PATH);
+            }}
+            sx={{ whiteSpace: "normal", py: 1.5 }}
+          >
+            {a.message}
+          </MenuItem>
+        ))}
         {billAlerts.map((b) => (
           <MenuItem
             key={b.accountId}

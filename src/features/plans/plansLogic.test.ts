@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkoutBlock, parsePaymentReturn, planStatus, PlanInfo, SubscriptionState, usagePercent, yearlySavingMonths } from "./plansLogic";
+import { checkoutBlock, planAlerts, parsePaymentReturn, planStatus, PlanInfo, SubscriptionState, usagePercent, yearlySavingMonths } from "./plansLogic";
 
 const HOGAR: PlanInfo = {
   id: "h",
@@ -82,5 +82,19 @@ describe("parsePaymentReturn", () => {
     expect(parsePaymentReturn("?pago=rechazado")).toBe("rechazado");
     expect(parsePaymentReturn("?pago=otro")).toBeNull();
     expect(parsePaymentReturn("")).toBeNull();
+  });
+});
+
+describe("planAlerts", () => {
+  const hogar = { id: "h", name: "HOGAR" };
+  it("prueba por terminar y cobro fallido", () => {
+    expect(planAlerts({ plan: hogar, subscriptionStatus: "TRIAL", daysRemaining: 5 })).toEqual([{ id: "trial", days: 5 }]);
+    expect(planAlerts({ plan: hogar, subscriptionStatus: "TRIAL", daysRemaining: 20 })).toEqual([]);
+    expect(planAlerts({ plan: hogar, subscriptionStatus: "PAST_DUE" })).toEqual([{ id: "pastDue" }]);
+  });
+  it("límites alcanzados; sin límite no avisa", () => {
+    const a = planAlerts({ plan: { id: "g", name: "GRATIS" }, subscriptionStatus: "TRIAL", daysRemaining: 0, totalBillAccounts: 8, accountLimit: 8, totalUsers: 1, userLimit: 2, aiReadsUsed: 3, aiReadsLimit: 3 });
+    expect(a).toEqual([{ id: "limit", what: "accounts" }, { id: "limit", what: "ai" }]);
+    expect(planAlerts({ plan: hogar, totalBillAccounts: 40, accountLimit: null })).toEqual([]);
   });
 });

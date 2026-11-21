@@ -461,6 +461,11 @@ const es = {
   settingsPlanManage: "Ver planes",
   userSaveError: "No pudimos guardar el miembro. Revisa los datos e intenta otra vez.",
   userEmailTaken: "Ese correo ya está registrado.",
+  notifPlanTrial: "Tu prueba del plan {plan} termina en {days} días",
+  notifPlanPastDue: "No pudimos cobrar tu plan. Revisa tu tarjeta.",
+  notifPlanLimit_accounts: "Llegaste al máximo de cuentas de tu plan",
+  notifPlanLimit_users: "Llegaste al máximo de miembros de tu plan",
+  notifPlanLimit_ai: "Usaste todas las lecturas con IA de este mes",
 };
 
 export type TranslationKey = keyof typeof es;

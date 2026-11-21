@@ -452,6 +452,11 @@ const en: Record<TranslationKey, string> = {
   settingsPlanManage: "See plans",
   userSaveError: "We couldn't save the member. Check the details and try again.",
   userEmailTaken: "That email is already registered.",
+  notifPlanTrial: "Your {plan} plan trial ends in {days} days",
+  notifPlanPastDue: "We couldn't charge your plan. Check your card.",
+  notifPlanLimit_accounts: "You've reached your plan's bill limit",
+  notifPlanLimit_users: "You've reached your plan's member limit",
+  notifPlanLimit_ai: "You've used all of this month's AI reads",
 };
 
 export default en;
