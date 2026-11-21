@@ -18,6 +18,7 @@ import {
   useTheme,
 } from "@mui/material";
 import VerifiedRounded from "@mui/icons-material/VerifiedRounded";
+import { PlanLimitAlert } from "../plans/planLimit";
 import { useLanguage } from "../../i18n";
 import { amountSx } from "../../brand/theme";
 import { formatMonthYear } from "../../utils/format";
@@ -111,7 +112,8 @@ export function ReceiptConfirmDialog({ analysis, saving, conflict, error, onConf
 
           <Stack spacing={2}>
             {analysis.duplicate?.sameFile && <Alert severity="info">{t("receiptSameFile")}</Alert>}
-            {error && <Alert severity="error">{t("genericError")}</Alert>}
+            {error === "planLimit" && <PlanLimitAlert message={t("planLimitAccounts")} />}
+            {error && error !== "planLimit" && <Alert severity="error">{t("genericError")}</Alert>}
 
             <TextField
               select

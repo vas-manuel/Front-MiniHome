@@ -16,12 +16,15 @@ import {
   IconButton,
   Paper,
   Skeleton,
+  Alert,
 } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { esES } from "@mui/x-data-grid/locales";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { useLanguage } from "./i18n";
+import { isPlanLimitError, PlanLimitAlert } from "./features/plans/planLimit";
 
 /* =======================
    GRAPHQL
@@ -113,6 +116,8 @@ const DELETE_ACCOUNT = gql`
 export default function BillStructureManager() {
   const [tab, setTab] = useState<"FIXED" | "VARIABLE">("FIXED");
   const [open, setOpen] = useState(false);
+  const { t } = useLanguage();
+  const [saveError, setSaveError] = useState<"planLimit" | "generic" | null>(null);
 
   const [accountName, setAccountName] = useState("");
   const [groupId, setGroupId] = useState<string | "">("");
@@ -144,6 +149,7 @@ export default function BillStructureManager() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const handleCreate = async () => {
+    setSaveError(null);
     let finalGroupId: string | null = groupId || null;
 
     // ✅ Si se escribió un nuevo grupo, siempre priorizarlo
@@ -174,18 +180,25 @@ export default function BillStructureManager() {
         },
       });
     } else {
-      await createAccount({
-        variables: {
-          name: accountName,
-          type: tab,
-          bill_group_id: finalGroupId,
-          due_day:
-            tab === "FIXED" && dueDay
-              ? Number(dueDay)
-              : null,
-        },
-      });
+      try {
+        await createAccount({
+          variables: {
+            name: accountName,
+            type: tab,
+            bill_group_id: finalGroupId,
+            due_day:
+              tab === "FIXED" && dueDay
+                ? Number(dueDay)
+                : null,
+          },
+        });
+      } catch (err) {
+        setSaveError(isPlanLimitError(err) ? "planLimit" : "generic");
+        return;
+      }
     }
+
+    setSaveError(null);
 
     setOpen(false);
     setEditingId(null);
@@ -270,7 +283,7 @@ export default function BillStructureManager() {
               setGroupId(params.row.groupId || "");
               setDueDay(params.row.due_day);
               setVisible(params.row.visible);
-              setOpen(true);
+              (setSaveError(null), setOpen(true));
             }}
           >
             <EditIcon fontSize="small" />
@@ -305,7 +318,7 @@ export default function BillStructureManager() {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => setOpen(true)}
+          onClick={() => (setSaveError(null), setOpen(true))}
         >
           Crear Cuenta
         </Button>
@@ -344,6 +357,8 @@ export default function BillStructureManager() {
           {editingId ? "Editar Cuenta" : "Crear Cuenta"}
         </DialogTitle>
         <DialogContent>
+          {saveError === "planLimit" && <PlanLimitAlert message={t("planLimitAccounts")} />}
+          {saveError === "generic" && <Alert severity="error">{t("genericError")}</Alert>}
           <Stack spacing={2} mt={1}>
             <TextField
               label={

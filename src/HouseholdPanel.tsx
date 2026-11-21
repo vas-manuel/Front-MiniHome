@@ -7,17 +7,18 @@ import {
   MenuItem,
   Button,
   Paper,
-  Grid,
   Stack,
   Divider,
   Alert,
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
+import { useNavigate } from "react-router-dom";
 import { useLanguage } from "./i18n";
+import { PLANS_PATH, usePlanLabel } from "./features/plans/planLimit";
 import { formatAmountInput, parseAmountInput } from "./features/bills/billsLogic";
 
 const GET_ME_AND_PLANS = gql`
-  query {
+  query HouseholdSettings {
     me {
       household {
         id
@@ -32,17 +33,12 @@ const GET_ME_AND_PLANS = gql`
         }
       }
     }
-    plans {
-      id
-      name
-    }
   }
 `;
 
 const UPDATE_MY_HOUSEHOLD = gql`
   mutation UpdateMyHousehold(
     $name: String
-    $planId: ID
     $currency: String
     $language: Language
     $monthlyBudget: Float
@@ -50,7 +46,6 @@ const UPDATE_MY_HOUSEHOLD = gql`
   ) {
     updateMyHousehold(
       name: $name
-      planId: $planId
       currency: $currency
       language: $language
       monthlyBudget: $monthlyBudget
@@ -72,11 +67,12 @@ export default function HouseholdPanel() {
   const { data, loading, refetch } = useQuery(GET_ME_AND_PLANS);
   const { t, setLanguage: setGlobalLanguage, setHouseholdPreferences } = useLanguage();
   const [updateMyHousehold] = useMutation(UPDATE_MY_HOUSEHOLD);
+  const navigate = useNavigate();
+  const planLabel = usePlanLabel();
 
   const [householdName, setHouseholdName] = useState("");
   const [currency, setCurrency] = useState("CLP");
   const [language, setLocalLanguage] = useState("es");
-  const [planId, setPlanId] = useState("");
   const [monthlyBudget, setMonthlyBudget] = useState("");
   const [savingsGoal, setSavingsGoal] = useState("");
   const [success, setSuccess] = useState(false);
@@ -88,7 +84,6 @@ export default function HouseholdPanel() {
       setHouseholdName(h.name || "");
       setCurrency(h.currency || "CLP");
       setLocalLanguage(h.language || "es");
-      setPlanId(h.plan?.id || "");
       setMonthlyBudget(h.monthlyBudget ? formatAmountInput(String(Math.round(h.monthlyBudget))) ?? "" : "");
       setSavingsGoal(h.savingsGoal ? formatAmountInput(String(Math.round(h.savingsGoal))) ?? "" : "");
     }
@@ -101,7 +96,6 @@ export default function HouseholdPanel() {
           name: householdName,
           currency,
           language,
-          planId: planId || null,
           monthlyBudget: monthlyBudget ? parseAmountInput(monthlyBudget) : null,
           savingsGoal: savingsGoal ? parseAmountInput(savingsGoal) : null,
         },
@@ -162,32 +156,17 @@ export default function HouseholdPanel() {
             variant="outlined"
           />
 
-          <TextField
-            select
-            label={t("plan") || "Plan"}
-            value={planId}
-            onChange={(e) => setPlanId(e.target.value)}
-            fullWidth
-          >
-            <MenuItem value="">
-              {t("noPlan") || "Sin Plan"}
-            </MenuItem>
-
-            {data?.plans?.length ? (
-              data.plans.map((p: any) => (
-                <MenuItem key={p.id} value={p.id}>
-                  {p.name}
-                  {p.id === data?.me?.household?.plan?.id
-                    ? ` (${t("current") || "Actual"})`
-                    : ""}
-                </MenuItem>
-              ))
-            ) : (
-              <MenuItem disabled>
-                {t("loading") || "Cargando..."}
-              </MenuItem>
-            )}
-          </TextField>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+            <Box>
+              <Typography variant="body2" color="text.secondary">
+                {t("settingsPlanLabel")}
+              </Typography>
+              <Typography fontWeight={600}>{planLabel(data?.me?.household?.plan?.name)}</Typography>
+            </Box>
+            <Button variant="outlined" onClick={() => navigate(PLANS_PATH)} sx={{ textTransform: "none" }}>
+              {t("settingsPlanManage")}
+            </Button>
+          </Stack>
 
           <Stack direction={{ xs: "column", md: "row" }} spacing={3}>
           <TextField

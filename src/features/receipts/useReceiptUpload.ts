@@ -105,7 +105,7 @@ export function useReceiptUpload(onSaved?: (r: SavedResult) => void) {
           setFlow({ kind: "error", code: "UPLOAD_NOT_FOUND" });
           return;
         }
-        setFlow({ kind: "review", analysis, saving: false, conflict: null, error: code === "VALIDATION" ? "validation" : "generic" });
+        setFlow({ kind: "review", analysis, saving: false, conflict: null, error: code === "VALIDATION" ? "validation" : code === "PLAN_LIMIT" ? "planLimit" : "generic" });
       }
     },
     [flow, confirmMutation, onSaved]

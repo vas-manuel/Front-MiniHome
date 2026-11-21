@@ -24,6 +24,7 @@ import { useLanguage } from "../i18n";
 import { useColorMode } from "../brand/ColorMode";
 import { useSession } from "./session";
 import { useMonthBills } from "../features/thisMonth/useMonthBills";
+import { usePlanLabel } from "../features/plans/planLimit";
 import { StatusChip } from "../components/StatusChip";
 
 const ADMIN_NOTIFICATIONS = gql`
@@ -142,6 +143,7 @@ export function NotificationsButton() {
 export function UserMenu() {
   const { t } = useLanguage();
   const { user, plan, isAdmin, can } = useSession();
+  const planLabel = usePlanLabel();
   const { mode, toggleColorMode } = useColorMode();
   const navigate = useNavigate();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
@@ -180,7 +182,7 @@ export function UserMenu() {
           <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
             <Typography variant="caption" color="text.secondary">
               {t(`role${user.role}`)}
-              {!isAdmin && plan ? ` · ${t("planName", { plan })}` : ""}
+              {!isAdmin && plan ? ` · ${t("planName", { plan: planLabel(plan) })}` : ""}
             </Typography>
           </Stack>
         </Box>

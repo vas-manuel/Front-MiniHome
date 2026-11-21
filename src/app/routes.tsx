@@ -38,6 +38,7 @@ const HouseholdUsersManager = lazy(() => import("../HouseholdUsersManager"));
 const HouseholdPanel = lazy(() => import("../HouseholdPanel"));
 const HouseholdIncomeManager = lazy(() => import("../HouseholdIncomeManager"));
 const SavingsManager = lazy(() => import("../SavingsManager"));
+const PlansPage = lazy(() => import("../features/plans/PlansPage"));
 
 const AdminDashboard = lazy(() => import("../AdminDashboard"));
 const AdminFinancialDashboard = lazy(() => import("../AdminFinancialDashboard"));
@@ -56,6 +57,7 @@ export const HOUSEHOLD_ROUTES: AppRoute[] = [
   { path: "/accounts", labelKey: "navAccounts", shortLabelKey: "navAccountsShort", icon: <AccountTreeRounded />, permission: "accounts", section: "home", Component: BillStructureManager },
   { path: "/users", labelKey: "navMembers", icon: <GroupRounded />, permission: "users", section: "home", Component: HouseholdUsersManager },
   { path: "/settings", labelKey: "navSettings", shortLabelKey: "navSettingsShort", icon: <SettingsRounded />, permission: "householdSettings", section: "home", Component: HouseholdPanel },
+  { path: "/planes", labelKey: "navPlans", icon: <WorkspacePremiumRounded />, permission: "home", section: "home", Component: PlansPage },
 ];
 
 export const ADMIN_ROUTES: AppRoute[] = [

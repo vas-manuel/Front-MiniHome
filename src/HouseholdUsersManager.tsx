@@ -16,6 +16,7 @@ import {
   Avatar,
   Fade,
   Skeleton,
+  Alert,
 } from "@mui/material";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import SaveIcon from "@mui/icons-material/Save";
@@ -26,6 +27,8 @@ import ToggleOffIcon from "@mui/icons-material/ToggleOff";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { esES } from "@mui/x-data-grid/locales";
 import { IconButton, Tooltip } from "@mui/material";
+import { useLanguage } from "./i18n";
+import { gqlErrorCode, PlanLimitAlert } from "./features/plans/planLimit";
 
 /* =======================
    GRAPHQL
@@ -83,6 +86,8 @@ const DELETE_USER = gql`
 
 export default function HouseholdUsersManager() {
   const { data, loading, refetch } = useQuery(LIST_USERS);
+  const { t } = useLanguage();
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [createUser] = useMutation(CREATE_USER);
   const [updateUserStatus] = useMutation(UPDATE_USER_STATUS);
   const [deleteUser] = useMutation(DELETE_USER);
@@ -110,22 +115,29 @@ export default function HouseholdUsersManager() {
   };
 
   const handleSave = async () => {
-    if (editingUser) {
-      await updateUserStatus({
-        variables: {
-          id: editingUser.id,
-          active: editingUser.active,
-        },
-      });
-    } else {
-      await createUser({
-        variables: {
-          name: form.name,
-          email: form.email,
-          password: form.provider === "LOCAL" ? form.password : "",
-          role: form.role,
-        },
-      });
+    setSaveError(null);
+    try {
+      if (editingUser) {
+        await updateUserStatus({
+          variables: {
+            id: editingUser.id,
+            active: editingUser.active,
+          },
+        });
+      } else {
+        await createUser({
+          variables: {
+            name: form.name,
+            email: form.email,
+            password: form.provider === "LOCAL" ? form.password : "",
+            role: form.role,
+          },
+        });
+      }
+    } catch (err: any) {
+      const code = gqlErrorCode(err);
+      setSaveError(code === "PLAN_LIMIT" ? "PLAN_LIMIT" : code === "EMAIL_TAKEN" ? t("userEmailTaken") : t("userSaveError"));
+      return;
     }
 
     setOpen(false);
@@ -215,7 +227,7 @@ export default function HouseholdUsersManager() {
                     role: params.row.role,
                     provider: params.row.provider || "LOCAL",
                   });
-                  setOpen(true);
+                  (setSaveError(null), setOpen(true));
                 }}
               >
                 <EditIcon fontSize="small" />
@@ -297,7 +309,7 @@ export default function HouseholdUsersManager() {
                 textTransform: "none",
                 fontWeight: "bold",
               }}
-              onClick={() => setOpen(true)}
+              onClick={() => (setSaveError(null), setOpen(true))}
             >
               Nuevo Usuario
             </Button>
@@ -357,6 +369,8 @@ export default function HouseholdUsersManager() {
         </DialogTitle>
 
           <DialogContent>
+            {saveError === "PLAN_LIMIT" && <PlanLimitAlert message={t("planLimitUsers")} />}
+            {saveError && saveError !== "PLAN_LIMIT" && <Alert severity="error">{saveError}</Alert>}
             <Stack spacing={3} mt={2}>
               <TextField
                 label="Nombre"
