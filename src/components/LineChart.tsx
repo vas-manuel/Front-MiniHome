@@ -158,6 +158,10 @@ export function LineChart({
             />
           ))}
 
+          {/* Con un solo punto no hay línea: se marca el punto */}
+          {n === 1 &&
+            visible.map((s) => <circle key={`one-${s.key}`} cx={x(0)} cy={y(s.values[0] ?? 0)} r={5} fill={s.color} stroke={c.surface} strokeWidth={2} />)}
+
           {active !== null &&
             visible.map((s) => (
               <circle key={s.key} cx={x(active)} cy={y(s.values[active] ?? 0)} r={5} fill={s.color} stroke={c.surface} strokeWidth={2} />

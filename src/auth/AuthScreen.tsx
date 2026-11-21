@@ -40,6 +40,7 @@ const REGISTER_MUTATION = gql`
     $googleIdToken: String
     $recaptchaToken: String!
     $provider: Provider!
+    $visitorId: String
   ) {
     registerHousehold(
       rut: $rut
@@ -49,9 +50,17 @@ const REGISTER_MUTATION = gql`
       googleIdToken: $googleIdToken
       recaptchaToken: $recaptchaToken
       provider: $provider
+      visitorId: $visitorId
     )
   }
 `;
+
+/* Visitante anónimo del sitio monihome.cl (cookie del dominio .monihome.cl), para medir registros */
+const siteVisitorId = () => document.cookie.match(/(?:^|; )mh_vid=([a-z0-9]+)/)?.[1] ?? null;
+
+/* monihome.cl enlaza a app.monihome.cl/?registro=1 para abrir directo el registro */
+const initialMode = (): "login" | "register" =>
+  new URLSearchParams(window.location.search).has("registro") ? "register" : "login";
 
 type Mode = "login" | "register";
 type Message = { kind: "error" | "success"; text: string } | null;
@@ -63,7 +72,7 @@ export default function AuthScreen() {
   const [login] = useMutation(LOGIN_MUTATION);
   const [register] = useMutation(REGISTER_MUTATION);
 
-  const [mode, setMode] = useState<Mode>("login");
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [rut, setRut] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -103,7 +112,7 @@ export default function AuthScreen() {
     try {
       const recaptchaToken = await getCaptcha(isRegister ? "register" : "login");
       if (isRegister) {
-        await register({ variables: { rut, name, email, password, recaptchaToken, provider: "LOCAL" } });
+        await register({ variables: { rut, name, email, password, recaptchaToken, provider: "LOCAL", visitorId: siteVisitorId() } });
         switchMode("login");
         setMessage({ kind: "success", text: t("registerSuccess") });
       } else {
@@ -132,7 +141,7 @@ export default function AuthScreen() {
       const recaptchaToken = await getCaptcha("google_auth");
       if (isRegister) {
         await register({
-          variables: { rut, googleIdToken: credentialResponse.credential, recaptchaToken, provider: "GOOGLE" },
+          variables: { rut, googleIdToken: credentialResponse.credential, recaptchaToken, provider: "GOOGLE", visitorId: siteVisitorId() },
         });
         switchMode("login");
         setMessage({ kind: "success", text: t("registerSuccess") });

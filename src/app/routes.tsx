@@ -11,6 +11,7 @@ import DashboardRounded from "@mui/icons-material/DashboardRounded";
 import AccountBalanceRounded from "@mui/icons-material/AccountBalanceRounded";
 import WorkspacePremiumRounded from "@mui/icons-material/WorkspacePremiumRounded";
 import StorefrontRounded from "@mui/icons-material/StorefrontRounded";
+import PublicRounded from "@mui/icons-material/PublicRounded";
 import ShoppingBasketRounded from "@mui/icons-material/ShoppingBasketRounded";
 
 export interface AppRoute {
@@ -42,6 +43,7 @@ const PlansPage = lazy(() => import("../features/plans/PlansPage"));
 const AdminOverviewPage = lazy(() => import("../features/admin/AdminOverviewPage"));
 const AdminHouseholdsPage = lazy(() => import("../features/admin/AdminHouseholdsPage"));
 const AdminFinancePage = lazy(() => import("../features/admin/AdminFinancePage"));
+const AdminSitePage = lazy(() => import("../features/admin/AdminSitePage"));
 const PlanManager = lazy(() => import("../PlanManager"));
 const MerchantManager = lazy(() => import("../MerchantManager"));
 
@@ -63,6 +65,7 @@ export const ADMIN_ROUTES: AppRoute[] = [
   { path: "/", labelKey: "navAdminSummary", icon: <DashboardRounded />, permission: "dashboard", section: "admin", primaryMobile: true, Component: AdminOverviewPage },
   { path: "/households", labelKey: "navAdminHouseholds", icon: <GroupRounded />, permission: "households", section: "admin", primaryMobile: true, Component: AdminHouseholdsPage },
   { path: "/financial", labelKey: "navAdminFinance", icon: <AccountBalanceRounded />, permission: "financial", section: "admin", primaryMobile: true, Component: AdminFinancePage },
+  { path: "/site", labelKey: "navAdminSite", icon: <PublicRounded />, permission: "dashboard", section: "admin", Component: AdminSitePage },
   { path: "/plans", labelKey: "navAdminPlans", icon: <WorkspacePremiumRounded />, permission: "plans", section: "admin", Component: PlanManager },
   { path: "/merchants", labelKey: "navAdminMerchants", icon: <StorefrontRounded />, permission: "plans", section: "admin", roles: ["SYSTEM_ADMIN"], Component: MerchantManager },
 ];
