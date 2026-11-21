@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { initialForm, NEW_ACCOUNT, resultingMonthTotal, toConfirmInput, validateForm } from "./receiptForm";
+import { dueDayOf, initialForm, NEW_ACCOUNT, proposedAccountName, resultingMonthTotal, toConfirmInput, validateForm } from "./receiptForm";
 import type { ReceiptAnalysis } from "./queries";
 
 const NOW = new Date(2026, 10, 20);
@@ -99,5 +99,60 @@ describe("toConfirmInput", () => {
     const input = toConfirmInput("u1", f);
     expect(input).toMatchObject({ newAccount: { name: "Gas" }, due_date: null });
     expect("bill_account_id" in input).toBe(false);
+  });
+});
+
+describe("cuenta no reconocida: se propone crearla", () => {
+  const labels: Record<string, string> = { luz: "Luz", agua: "Agua", internet: "Internet" };
+  const label = (k: string) => labels[k] ?? null;
+
+  it("sin sugerencias: preselecciona cuenta nueva con nombre, grupo y revisión del nombre", () => {
+    const { form, flags } = initialForm(
+      analysis({ accountSuggestions: [], providerName: "CGE", category: "luz", suggestedGroupId: "g1" }),
+      label
+    );
+    expect(form).toMatchObject({ accountId: NEW_ACCOUNT, newAccountName: "Luz CGE", newAccountGroupId: "g1" });
+    expect(flags.newAccountProposed).toBe(true);
+    expect(flags.review).toMatchObject({ accountId: false, newAccountName: true });
+  });
+
+  it("una sugerencia solo por palabras del nombre no cuenta como reconocida", () => {
+    const { form } = initialForm(
+      analysis({ accountSuggestions: [{ confidence: "LOW", reason: "NAME_SIMILARITY", account: { id: "a9", name: "Crédito Falabella" } }], category: "internet" }),
+      label
+    );
+    expect(form).toMatchObject({ accountId: NEW_ACCOUNT, newAccountName: "Internet" });
+  });
+
+  it("con cuenta sugerida por tipo de servicio, se usa la existente", () => {
+    const { form, flags } = initialForm(
+      analysis({ accountSuggestions: [{ confidence: "LOW", reason: "MERCHANT", account: { id: "a1", name: "Luz" } }], providerName: "Enel", category: "luz" }),
+      label
+    );
+    // El nombre queda precargado por si la persona elige "Crear cuenta nueva"
+    expect(form).toMatchObject({ accountId: "a1", newAccountName: "Luz Enel" });
+    expect(flags.newAccountProposed).toBe(false);
+  });
+
+  it("proposedAccountName no repite el tipo cuando el proveedor ya lo dice", () => {
+    expect(proposedAccountName("Aguas Andinas", "Agua")).toBe("Aguas Andinas");
+    expect(proposedAccountName("Metrogas", "Gas")).toBe("Metrogas");
+    expect(proposedAccountName("Enel", "Luz")).toBe("Luz Enel");
+    expect(proposedAccountName(null, "Luz")).toBe("Luz");
+    expect(proposedAccountName("VTR", null)).toBe("VTR");
+    expect(proposedAccountName(null, null)).toBe("");
+  });
+
+  it("no permite crear una cuenta con el nombre de una existente", () => {
+    const { form } = initialForm(analysis({ accountSuggestions: [], providerName: "Essbio", category: "agua" }), label); // "Agua Essbio"
+    expect(validateForm(form, NOW, ["agua  essbio"]).errors.newAccountName).toBe("exists");
+    expect(validateForm(form, NOW, ["Essbio"]).valid).toBe(true);
+  });
+
+  it("envía grupo y día de vencimiento de la cuenta nueva", () => {
+    const { form } = initialForm(analysis({ accountSuggestions: [], providerName: "CGE", category: "luz", suggestedGroupId: "g1" }), label);
+    expect(toConfirmInput("u1", form)).toMatchObject({ newAccount: { name: "Luz CGE", bill_group_id: "g1", due_day: 10 } });
+    expect(toConfirmInput("u1", { ...form, newAccountGroupId: "", dueDate: "" })).toMatchObject({ newAccount: { name: "Luz CGE", bill_group_id: null, due_day: null } });
+    expect(dueDayOf("2026-12-05")).toBe(5);
   });
 });

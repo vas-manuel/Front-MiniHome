@@ -24,6 +24,8 @@ export const ANALYZE_RECEIPT = gql`
       proposedMonth
       monthConfidence
       providerName
+      category
+      suggestedGroupId
       issuerRut
       customerNumber
       accountSuggestions {
@@ -81,6 +83,15 @@ export const DISCARD_RECEIPT = gql`
   }
 `;
 
+export const GET_BILL_GROUPS = gql`
+  query BillGroupsForReceipt {
+    billGroups {
+      id
+      name
+    }
+  }
+`;
+
 export type Confidence = "HIGH" | "MEDIUM" | "LOW";
 export type UnreadableReason = "NO_TOTAL" | "LOW_QUALITY" | "NO_TEXT" | "UNSUPPORTED_FILE" | "PROTECTED_PDF";
 
@@ -107,6 +118,9 @@ export interface ReceiptAnalysis {
   proposedMonth?: number | null;
   monthConfidence?: Confidence | null;
   providerName?: string | null;
+  /** Tipo de servicio (CategoryKey de la marca) para nombrar una cuenta nueva */
+  category?: string | null;
+  suggestedGroupId?: string | null;
   issuerRut?: string | null;
   customerNumber?: string | null;
   accountSuggestions: AccountSuggestion[];

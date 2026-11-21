@@ -18,12 +18,13 @@ import {
   useTheme,
 } from "@mui/material";
 import VerifiedRounded from "@mui/icons-material/VerifiedRounded";
+import AddCircleOutlineRounded from "@mui/icons-material/AddCircleOutlineRounded";
 import { PlanLimitAlert } from "../plans/planLimit";
 import { useLanguage } from "../../i18n";
 import { amountSx } from "../../brand/theme";
 import { formatMonthYear } from "../../utils/format";
 import { GET_ACCOUNTS } from "../bills/queries";
-import type { ReceiptAnalysis } from "./queries";
+import { GET_BILL_GROUPS, ReceiptAnalysis } from "./queries";
 import type { Conflict } from "./useReceiptUpload";
 import { ReceiptPreview } from "./ReceiptPreview";
 import {
@@ -55,24 +56,37 @@ export function ReceiptConfirmDialog({ analysis, saving, conflict, error, onConf
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const { data } = useQuery<{ billAccounts: Account[] }>(GET_ACCOUNTS, { variables: { type: "FIXED" } });
+  const { data: groupsData } = useQuery<{ billGroups: { id: string; name: string }[] }>(GET_BILL_GROUPS);
 
-  const init = useMemo(() => initialForm(analysis), [analysis]);
+  const init = useMemo(
+    () =>
+      initialForm(analysis, (key) => {
+        const label = t(`billCategory_${key}`);
+        return label === `billCategory_${key}` ? null : label;
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [analysis]
+  );
   const [form, setForm] = useState<ReceiptFormState>(init.form);
   const [touched, setTouched] = useState(false);
   useEffect(() => setForm(init.form), [init]);
 
-  const v = validateForm(form);
+  const accounts = data?.billAccounts ?? [];
+  const v = validateForm(form, undefined, accounts.map((a) => a.name));
   const set = <K extends keyof ReceiptFormState>(k: K, value: ReceiptFormState[K]) => setForm((f) => ({ ...f, [k]: value }));
   const review = (k: keyof ReceiptFormState) => init.flags.review[k] && !(touched && v.errors[k]);
   const errorText = (k: keyof ReceiptFormState) => {
     const e = touched ? v.errors[k] : undefined;
+    if (e === "exists") return t("receiptAccountNameExists");
     if (e === "yearRange") return t("receiptYearOutOfRange", { from: v.yearRange.from, to: v.yearRange.to });
     if (e) return t("receiptRequired");
     return review(k) ? t("receiptCheckField") : undefined;
   };
 
   const suggested = new Map(analysis.accountSuggestions.map((s) => [s.account.id, s]));
-  const accounts = data?.billAccounts ?? [];
+  const sameName = (name: string) => name.toLowerCase().replace(/\s+/g, " ").trim();
+  const existingWithName =
+    v.errors.newAccountName === "exists" ? accounts.find((a) => sameName(a.name) === sameName(form.newAccountName)) : undefined;
   const groups = useMemo(() => {
     const g: Record<string, Account[]> = {};
     accounts
@@ -113,7 +127,8 @@ export function ReceiptConfirmDialog({ analysis, saving, conflict, error, onConf
           <Stack spacing={2}>
             {analysis.duplicate?.sameFile && <Alert severity="info">{t("receiptSameFile")}</Alert>}
             {error === "planLimit" && <PlanLimitAlert message={t("planLimitAccounts")} />}
-            {error && error !== "planLimit" && <Alert severity="error">{t("genericError")}</Alert>}
+            {error === "nameExists" && <Alert severity="warning">{t("receiptAccountNameExists")}</Alert>}
+            {error && error !== "planLimit" && error !== "nameExists" && <Alert severity="error">{t("genericError")}</Alert>}
 
             <TextField
               select
@@ -150,14 +165,44 @@ export function ReceiptConfirmDialog({ analysis, saving, conflict, error, onConf
             </TextField>
 
             {form.accountId === NEW_ACCOUNT && (
-              <TextField
-                autoFocus
-                label={t("receiptNewAccountName")}
-                value={form.newAccountName}
-                onChange={(e) => set("newAccountName", e.target.value)}
-                error={touched && Boolean(v.errors.newAccountName)}
-                helperText={touched && v.errors.newAccountName ? t("receiptRequired") : undefined}
-              />
+              <>
+                {init.flags.newAccountProposed && (
+                  <Alert severity="info" icon={<AddCircleOutlineRounded />}>
+                    {t("receiptNewAccountProposed")}
+                  </Alert>
+                )}
+                <TextField
+                  autoFocus={!form.newAccountName}
+                  label={t("receiptNewAccountName")}
+                  value={form.newAccountName}
+                  onChange={(e) => set("newAccountName", e.target.value)}
+                  error={Boolean(v.errors.newAccountName === "exists" || (touched && v.errors.newAccountName))}
+                  helperText={v.errors.newAccountName === "exists" ? t("receiptAccountNameExists") : errorText("newAccountName")}
+                  color={review("newAccountName") ? "warning" : undefined}
+                  focused={review("newAccountName") || undefined}
+                />
+                {existingWithName && (
+                  <Box>
+                    <Button size="small" variant="outlined" onClick={() => set("accountId", existingWithName.id)}>
+                      {t("receiptUseExistingAccount", { name: existingWithName.name })}
+                    </Button>
+                  </Box>
+                )}
+                <TextField
+                  select
+                  label={t("receiptNewAccountGroup")}
+                  value={form.newAccountGroupId}
+                  onChange={(e) => set("newAccountGroupId", e.target.value)}
+                  helperText={form.dueDate ? t("receiptNewAccountDueDay", { day: Number(form.dueDate.slice(8, 10)) }) : undefined}
+                >
+                  <MenuItem value="">{t("noGroup")}</MenuItem>
+                  {(groupsData?.billGroups ?? []).map((g) => (
+                    <MenuItem key={g.id} value={g.id}>
+                      {g.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </>
             )}
 
             <Stack direction="row" spacing={2}>

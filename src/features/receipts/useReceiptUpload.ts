@@ -30,7 +30,7 @@ export interface SavedResult {
   replaced: boolean;
 }
 
-const REFRESH = ["MonthBills", "GetAmounts", "GetAmountsAll", "GetAccounts", "AnalysisDashboard"];
+const REFRESH = ["MonthBills", "GetAmounts", "GetAmountsAll", "GetAccounts", "AnalysisDashboard", "BillGroupsForReceipt"];
 
 const gqlCode = (err: any): string | undefined => err?.graphQLErrors?.[0]?.extensions?.code;
 
@@ -105,7 +105,7 @@ export function useReceiptUpload(onSaved?: (r: SavedResult) => void) {
           setFlow({ kind: "error", code: "UPLOAD_NOT_FOUND" });
           return;
         }
-        setFlow({ kind: "review", analysis, saving: false, conflict: null, error: code === "VALIDATION" ? "validation" : code === "PLAN_LIMIT" ? "planLimit" : "generic" });
+        setFlow({ kind: "review", analysis, saving: false, conflict: null, error: code === "VALIDATION" ? "validation" : code === "PLAN_LIMIT" ? "planLimit" : code === "ACCOUNT_NAME_EXISTS" ? "nameExists" : "generic" });
       }
     },
     [flow, confirmMutation, onSaved]
