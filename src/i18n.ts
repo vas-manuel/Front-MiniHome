@@ -1,26 +1,27 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 import es from "./locales/es";
-import en from "./locales/en";
-import pt from "./locales/pt";
 import { formatMoney } from "./utils/format";
+import { DEFAULT_CURRENCY, DEFAULT_LANGUAGE, EnabledLanguage, enabledCurrency, enabledLanguage } from "./config/market";
 
-export type Language = "es" | "en" | "pt";
+/*
+ * Solo español por ahora (config/market.ts). en.ts y pt.ts se conservan en src/locales sin cargarse:
+ * para habilitarlos, impórtalos aquí, agrégalos a `translations` y a ENABLED_LANGUAGES.
+ */
+export type Language = EnabledLanguage;
 type Vars = Record<string, string | number>;
 
-const translations: Record<Language, Record<string, string>> = { es, en, pt };
+const translations: Record<Language, Record<string, string>> = { es };
 
-const localeMap: Record<Language, string> = {
+const localeMap: Record<string, string> = {
   es: "es-CL",
   en: "en-US",
   pt: "pt-BR",
 };
 
-function normalizeLanguage(value?: string | null): Language {
-  return value === "en" || value === "pt" ? value : "es";
-}
+const normalizeLanguage = enabledLanguage;
 
 function translate(lang: Language, key: string, vars?: Vars) {
-  const template = translations[lang][key] ?? translations.es[key] ?? key;
+  const template = translations[lang]?.[key] ?? translations.es[key] ?? key;
   if (!vars) return template;
   return template.replace(/\{(\w+)\}/g, (_, name) =>
     vars[name] !== undefined ? String(vars[name]) : `{${name}}`
@@ -28,7 +29,7 @@ function translate(lang: Language, key: string, vars?: Vars) {
 }
 
 /* =========================
-   CONTEXTO: idioma y moneda del hogar (constitución, principio V)
+   CONTEXTO: idioma y moneda del hogar, limitados a los habilitados (constitución, principio V)
 ========================= */
 
 interface LanguageContextProps {
@@ -44,15 +45,15 @@ interface LanguageContextProps {
 const LanguageContext = createContext<LanguageContextProps | undefined>(undefined);
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [language, setLanguageState] = useState<Language>("es");
-  const [currency, setCurrency] = useState<string>("CLP");
+  const [language, setLanguageState] = useState<Language>(DEFAULT_LANGUAGE);
+  const [currency, setCurrency] = useState<string>(DEFAULT_CURRENCY);
 
   const setLanguage = useCallback((lang: Language) => setLanguageState(normalizeLanguage(lang)), []);
 
   const setHouseholdPreferences = useCallback(
     (prefs: { language?: string | null; currency?: string | null }) => {
       if (prefs.language) setLanguageState(normalizeLanguage(prefs.language));
-      if (prefs.currency) setCurrency(prefs.currency);
+      if (prefs.currency) setCurrency(enabledCurrency(prefs.currency));
     },
     []
   );
