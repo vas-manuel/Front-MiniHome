@@ -15,6 +15,15 @@ import SaveIcon from "@mui/icons-material/Save";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "./i18n";
 import { PLANS_PATH, usePlanLabel } from "./features/plans/planLimit";
+import {
+  DEFAULT_CURRENCY,
+  DEFAULT_LANGUAGE,
+  ENABLED_CURRENCIES,
+  ENABLED_LANGUAGES,
+  enabledCurrency,
+  enabledLanguage,
+  LANGUAGE_NAMES,
+} from "./config/market";
 import { formatAmountInput, parseAmountInput } from "./features/bills/billsLogic";
 
 const GET_ME_AND_PLANS = gql`
@@ -71,8 +80,8 @@ export default function HouseholdPanel() {
   const planLabel = usePlanLabel();
 
   const [householdName, setHouseholdName] = useState("");
-  const [currency, setCurrency] = useState("CLP");
-  const [language, setLocalLanguage] = useState("es");
+  const [currency, setCurrency] = useState<string>(DEFAULT_CURRENCY);
+  const [language, setLocalLanguage] = useState<string>(DEFAULT_LANGUAGE);
   const [monthlyBudget, setMonthlyBudget] = useState("");
   const [savingsGoal, setSavingsGoal] = useState("");
   const [success, setSuccess] = useState(false);
@@ -82,8 +91,8 @@ export default function HouseholdPanel() {
     if (data?.me?.household) {
       const h = data.me.household;
       setHouseholdName(h.name || "");
-      setCurrency(h.currency || "CLP");
-      setLocalLanguage(h.language || "es");
+      setCurrency(enabledCurrency(h.currency));
+      setLocalLanguage(enabledLanguage(h.language));
       setMonthlyBudget(h.monthlyBudget ? formatAmountInput(String(Math.round(h.monthlyBudget))) ?? "" : "");
       setSavingsGoal(h.savingsGoal ? formatAmountInput(String(Math.round(h.savingsGoal))) ?? "" : "");
     }
@@ -102,7 +111,7 @@ export default function HouseholdPanel() {
       });
 
       // ✅ Actualizar idioma global inmediatamente
-      setGlobalLanguage(language as any);
+      setGlobalLanguage(enabledLanguage(language));
 
       setHouseholdPreferences({ language, currency });
       setError(null);
@@ -168,35 +177,36 @@ export default function HouseholdPanel() {
             </Button>
           </Stack>
 
-          <Stack direction={{ xs: "column", md: "row" }} spacing={3}>
-          <TextField
-            select
-            label={t("currency") || "Moneda"}
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
-            fullWidth
-          >
-            <MenuItem value="CLP">CLP</MenuItem>
-            <MenuItem value="USD">USD</MenuItem>
-            <MenuItem value="EUR">EUR</MenuItem>
-          </TextField>
-
-            <TextField
-              select
-              label={t("language") || "Idioma"}
-              value={language}
-              onChange={(e) => setLocalLanguage(e.target.value)}
-              fullWidth
-              helperText={
-                t("selectLanguage") ||
-                "Selecciona el idioma de la plataforma"
-              }
-            >
-              <MenuItem value="es">Español</MenuItem>
-              <MenuItem value="en">English</MenuItem>
-              <MenuItem value="pt">Português</MenuItem>
-            </TextField>
-          </Stack>
+          {/* Idioma y moneda: ocultos mientras solo esté habilitado Chile (config/market.ts) */}
+          {(ENABLED_CURRENCIES.length > 1 || ENABLED_LANGUAGES.length > 1) && (
+            <Stack direction={{ xs: "column", md: "row" }} spacing={3}>
+              {ENABLED_CURRENCIES.length > 1 && (
+                <TextField select label={t("currency")} value={currency} onChange={(e) => setCurrency(e.target.value)} fullWidth>
+                  {ENABLED_CURRENCIES.map((c) => (
+                    <MenuItem key={c} value={c}>
+                      {c}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+              {ENABLED_LANGUAGES.length > 1 && (
+                <TextField
+                  select
+                  label={t("language")}
+                  value={language}
+                  onChange={(e) => setLocalLanguage(e.target.value)}
+                  fullWidth
+                  helperText={t("selectLanguage")}
+                >
+                  {ENABLED_LANGUAGES.map((l) => (
+                    <MenuItem key={l} value={l}>
+                      {LANGUAGE_NAMES[l]}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+            </Stack>
+          )}
 
           <Stack direction={{ xs: "column", md: "row" }} spacing={3}>
             <TextField
